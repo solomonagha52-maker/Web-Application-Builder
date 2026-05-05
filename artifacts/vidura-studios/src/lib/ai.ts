@@ -145,47 +145,49 @@ STRICT REQUIREMENTS:
 
 ${pdfContext ? `Reference material:\n${pdfContext.substring(0, 4000)}\n\n` : ""}
 
-Return ONLY a valid JSON array of exactly 6 scene objects. No markdown. No code fences. Raw JSON only.
+Return a JSON object with a single key "scenes" whose value is an array of exactly 6 scene objects. No markdown. No code fences. No explanation. Raw JSON only.
 
 Exact structure:
-[
-  {
-    "scene_number": 1,
-    "title": "Scene 1: Introduction to [specific aspect]",
-    "visual_cue": "Detailed description of what appears on screen during this narration.",
-    "script_text": "Full 500–833 word voiceover narration for this scene..."
-  },
-  {
-    "scene_number": 2,
-    "title": "Scene 2: [specific sub-topic]",
-    "visual_cue": "...",
-    "script_text": "..."
-  },
-  {
-    "scene_number": 3,
-    "title": "Scene 3: [specific sub-topic]",
-    "visual_cue": "...",
-    "script_text": "..."
-  },
-  {
-    "scene_number": 4,
-    "title": "Scene 4: [specific sub-topic]",
-    "visual_cue": "...",
-    "script_text": "..."
-  },
-  {
-    "scene_number": 5,
-    "title": "Scene 5: [specific sub-topic]",
-    "visual_cue": "...",
-    "script_text": "..."
-  },
-  {
-    "scene_number": 6,
-    "title": "Scene 6: Synthesis and Key Takeaways",
-    "visual_cue": "...",
-    "script_text": "..."
-  }
-]`;
+{
+  "scenes": [
+    {
+      "scene_number": 1,
+      "title": "Scene 1: Introduction to [specific aspect]",
+      "visual_cue": "Detailed description of what appears on screen during this narration.",
+      "script_text": "Full 500–833 word voiceover narration for this scene..."
+    },
+    {
+      "scene_number": 2,
+      "title": "Scene 2: [specific sub-topic]",
+      "visual_cue": "Detailed production-ready visual description.",
+      "script_text": "Full 500–833 word voiceover narration..."
+    },
+    {
+      "scene_number": 3,
+      "title": "Scene 3: [specific sub-topic]",
+      "visual_cue": "Detailed production-ready visual description.",
+      "script_text": "Full 500–833 word voiceover narration..."
+    },
+    {
+      "scene_number": 4,
+      "title": "Scene 4: [specific sub-topic]",
+      "visual_cue": "Detailed production-ready visual description.",
+      "script_text": "Full 500–833 word voiceover narration..."
+    },
+    {
+      "scene_number": 5,
+      "title": "Scene 5: [specific sub-topic]",
+      "visual_cue": "Detailed production-ready visual description.",
+      "script_text": "Full 500–833 word voiceover narration..."
+    },
+    {
+      "scene_number": 6,
+      "title": "Scene 6: Synthesis and Key Takeaways",
+      "visual_cue": "Detailed production-ready visual description.",
+      "script_text": "Full 500–833 word voiceover narration..."
+    }
+  ]
+}`;
 
   const response = await fetch("/api/ai/generate", {
     method: "POST",
@@ -201,32 +203,37 @@ Exact structure:
   const data = await response.json() as { response?: string };
   const raw = data.response || "";
 
-  // The response is a JSON array — unwrap from object wrapper if needed
+  // Parse and extract the scenes array from the { "scenes": [...] } wrapper
+  const extractScenes = (value: unknown): CourseScene[] | null => {
+    if (Array.isArray(value)) return value as CourseScene[];
+    if (value && typeof value === "object") {
+      const obj = value as Record<string, unknown>;
+      // Check explicit "scenes" key first (matches our prompt format)
+      if (Array.isArray(obj["scenes"])) return obj["scenes"] as CourseScene[];
+      // Fall back: find any array-valued key
+      const key = Object.keys(obj).find((k) => Array.isArray(obj[k]));
+      if (key) return obj[key] as CourseScene[];
+    }
+    return null;
+  };
+
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
   } catch {
-    const arrMatch = raw.match(/\[[\s\S]*\]/);
+    // Try pulling a JSON block out of any surrounding text
     const objMatch = raw.match(/\{[\s\S]*\}/);
-    if (arrMatch) {
-      parsed = JSON.parse(arrMatch[0]);
-    } else if (objMatch) {
-      const obj = JSON.parse(objMatch[0]) as Record<string, unknown>;
-      const key = Object.keys(obj).find((k) => Array.isArray(obj[k]));
-      parsed = key ? obj[key] : [];
-    } else {
-      throw new Error("Failed to parse topic script as JSON");
+    const arrMatch = raw.match(/\[[\s\S]*\]/);
+    if (objMatch) {
+      try { parsed = JSON.parse(objMatch[0]); } catch { /* ignore */ }
+    }
+    if (!parsed && arrMatch) {
+      try { parsed = JSON.parse(arrMatch[0]); } catch { /* ignore */ }
     }
   }
 
-  if (Array.isArray(parsed)) return parsed as CourseScene[];
-
-  // Handle case where AI returns { scenes: [...] } or similar wrapper
-  if (parsed && typeof parsed === "object") {
-    const obj = parsed as Record<string, unknown>;
-    const key = Object.keys(obj).find((k) => Array.isArray(obj[k]));
-    if (key) return obj[key] as CourseScene[];
-  }
+  const scenes = extractScenes(parsed);
+  if (scenes && scenes.length > 0) return scenes;
 
   throw new Error("AI response did not contain a valid scene array");
 }
