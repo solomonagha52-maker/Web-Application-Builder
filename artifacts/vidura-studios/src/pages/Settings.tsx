@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import DashboardLayout from "@/components/DashboardLayout";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useAuth, getInitials } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, CheckCircle2 } from "lucide-react";
 
 function getStoredTheme(): boolean {
   return localStorage.getItem("vidura_theme") === "dark";
@@ -27,7 +27,14 @@ export default function Settings() {
   const [fullName, setFullName] = useState(profile?.full_name || "");
   const [email, setEmail] = useState(profile?.email || user?.email || "");
   const [saving, setSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+
+  // After a successful save we block the profile→form sync for one cycle.
+  // Without this guard, background auth token refreshes trigger onAuthStateChange
+  // → fetchProfile → setProfile → useEffect([profile]) which resets the inputs
+  // back to whatever was in the DB before the upsert completed.
+  const blockNextProfileSync = useRef(false);
 
   const [theme, setTheme] = useState(getStoredTheme);
   const [emailReports, setEmailReports] = useState(
@@ -38,10 +45,13 @@ export default function Settings() {
   );
 
   useEffect(() => {
-    if (profile) {
-      setFullName(profile.full_name || "");
-      setEmail(profile.email || user?.email || "");
+    if (!profile) return;
+    if (blockNextProfileSync.current) {
+      blockNextProfileSync.current = false;
+      return;
     }
+    setFullName(profile.full_name || "");
+    setEmail(profile.email || user?.email || "");
   }, [profile, user]);
 
   useEffect(() => {
@@ -69,18 +79,28 @@ export default function Settings() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
-    const { error } = await updateProfile({ full_name: fullName, email });
+    setSaveSuccess(false);
+
+    // Block the next profile re-sync so a background fetchProfile triggered by
+    // updateProfile's own re-fetch doesn't overwrite the inputs the user sees.
+    blockNextProfileSync.current = true;
+
+    const { error, saved } = await updateProfile({ full_name: fullName, email });
     setSaving(false);
+
     if (error) {
+      blockNextProfileSync.current = false;
       toast({
         title: "Failed to save changes",
         description: error.message.includes("email")
-          ? "Email change requires confirmation — check your inbox for a verification link."
+          ? "Email change requires inbox confirmation — check your email for a verification link."
           : error.message,
         variant: "destructive",
       });
-    } else {
-      toast({ title: "Profile updated successfully" });
+    } else if (saved) {
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+      toast({ title: "Profile saved", description: `Name updated to "${fullName}"` });
     }
   };
 
@@ -173,8 +193,12 @@ export default function Settings() {
                   className="px-6 py-2.5 rounded-md bg-[#004D40] text-white font-bold hover:bg-[#003d33] transition-colors disabled:opacity-60 flex items-center gap-2"
                   data-testid="btn-save-settings"
                 >
-                  {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                  {saving ? "Saving…" : "Save Changes"}
+                  {saving ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : saveSuccess ? (
+                    <CheckCircle2 className="h-4 w-4" />
+                  ) : null}
+                  {saving ? "Saving…" : saveSuccess ? "Saved!" : "Save Changes"}
                 </button>
               </div>
             </form>

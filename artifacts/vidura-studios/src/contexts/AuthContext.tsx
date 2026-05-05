@@ -19,7 +19,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName: string) => Promise<{ error: Error | null }>;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
-  updateProfile: (data: Partial<Omit<Profile, "id">>) => Promise<{ error: Error | null }>;
+  updateProfile: (data: Partial<Omit<Profile, "id">>) => Promise<{ error: Error | null; saved: boolean }>;
   refreshProfile: () => Promise<void>;
 }
 
@@ -87,8 +87,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
-    const base = import.meta.env.BASE_URL ?? "/";
-    const redirectTo = `${window.location.origin}${base}`;
+    // Always use window.location.origin so the URL is predictable and
+    // easy to add to Supabase's Redirect URL allowlist.
+    const redirectTo = `${window.location.origin}/dashboard`;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: { redirectTo },
@@ -104,19 +105,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateProfile = async (updates: Partial<Omit<Profile, "id">>) => {
-    if (!user) return { error: new Error("Not authenticated") };
+    if (!user) return { error: new Error("Not authenticated"), saved: false };
 
+    // Only trigger Supabase Auth email change when the email actually differs
     if (updates.email && updates.email !== user.email) {
       const { error: emailError } = await supabase.auth.updateUser({ email: updates.email });
-      if (emailError) return { error: emailError as Error };
+      if (emailError) return { error: emailError as Error, saved: false };
     }
 
+    // Use upsert so the row is created if it somehow doesn't exist yet.
+    // A plain .update() silently no-ops on a missing row, returning no error
+    // but writing nothing — which is what caused names to "revert".
     const { error } = await supabase
       .from("profiles")
-      .update({ ...updates, updated_at: new Date().toISOString() })
-      .eq("id", user.id);
-    if (!error) setProfile((prev) => (prev ? { ...prev, ...updates } : null));
-    return { error: error as Error | null };
+      .upsert(
+        { id: user.id, ...updates, updated_at: new Date().toISOString() },
+        { onConflict: "id" }
+      );
+
+    if (error) return { error: error as Error, saved: false };
+
+    // Immediately re-fetch from DB so local state reflects what actually
+    // persisted, rather than relying on an optimistic local merge.
+    await fetchProfile(user.id);
+    return { error: null, saved: true };
   };
 
   const refreshProfile = async () => {
