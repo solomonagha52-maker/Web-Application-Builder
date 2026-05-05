@@ -136,13 +136,13 @@ export default function CourseStructure() {
                 <p className="text-muted-foreground text-base mb-4">{project.subject}</p>
               )}
               <div className="flex flex-wrap gap-3">
-                <span className="px-4 py-1.5 rounded-full bg-[#F0F4F4] text-sm font-semibold border border-border">
+                <span className="px-4 py-1.5 rounded-full bg-[#F0F4F4] dark:bg-muted text-sm font-semibold border border-border">
                   {modulesWithTopics.length} Modules
                 </span>
-                <span className="px-4 py-1.5 rounded-full bg-[#F0F4F4] text-sm font-semibold border border-border">
+                <span className="px-4 py-1.5 rounded-full bg-[#F0F4F4] dark:bg-muted text-sm font-semibold border border-border">
                   {totalTopics} Topics
                 </span>
-                <span className="px-4 py-1.5 rounded-full bg-[#F0F4F4] text-sm font-semibold border border-border flex items-center gap-1.5">
+                <span className="px-4 py-1.5 rounded-full bg-[#F0F4F4] dark:bg-muted text-sm font-semibold border border-border flex items-center gap-1.5">
                   <Clock className="h-4 w-4" />
                   {estimatedHours > 0 ? `~${estimatedHours.toFixed(1)} hours` : "TBD"}
                 </span>
@@ -171,11 +171,11 @@ export default function CourseStructure() {
                   return (
                     <div
                       key={module.id}
-                      className="border border-border rounded-xl bg-white overflow-hidden shadow-sm"
+                      className="border border-border rounded-xl bg-white dark:bg-card overflow-hidden shadow-sm"
                     >
                       <button
                         onClick={() => toggleModule(module.id)}
-                        className="w-full px-6 py-5 flex items-center justify-between bg-white hover:bg-[#F0F4F4]/50 transition-colors"
+                        className="w-full px-6 py-5 flex items-center justify-between bg-white dark:bg-card hover:bg-[#F0F4F4]/50 dark:hover:bg-muted/30 transition-colors"
                         data-testid={`btn-toggle-module-${module.id}`}
                       >
                         <div className="flex items-center gap-4">
@@ -186,13 +186,13 @@ export default function CourseStructure() {
                           )}
                           <h2 className="text-lg font-bold text-left">{module.title}</h2>
                         </div>
-                        <span className="text-sm font-medium text-muted-foreground bg-[#F0F4F4] px-3 py-1 rounded-md shrink-0 ml-4">
+                        <span className="text-sm font-medium text-muted-foreground bg-[#F0F4F4] dark:bg-muted px-3 py-1 rounded-md shrink-0 ml-4">
                           {module.topics.length} Topics
                         </span>
                       </button>
 
                       {isExpanded && (
-                        <div className="border-t border-border bg-[#fafcfc]">
+                        <div className="border-t border-border bg-[#fafcfc] dark:bg-card/50">
                           {module.topics.length === 0 ? (
                             <p className="text-sm text-muted-foreground text-center py-6">No topics in this module.</p>
                           ) : (
@@ -207,20 +207,20 @@ export default function CourseStructure() {
                                 <div
                                   key={topic.id}
                                   className={cn(
-                                    "px-8 py-4 flex items-center justify-between hover:bg-black/5 transition-colors",
+                                    "px-8 py-4 flex items-center justify-between hover:bg-black/5 dark:hover:bg-white/5 transition-colors",
                                     idx !== module.topics.length - 1 ? "border-b border-border/50" : ""
                                   )}
                                   data-testid={`topic-row-${topic.id}`}
                                 >
                                   <div className="flex items-center gap-4">
-                                    <div className="h-8 w-8 rounded-full bg-white border border-border flex items-center justify-center shadow-sm shrink-0">
+                                    <div className="h-8 w-8 rounded-full bg-white dark:bg-muted border border-border flex items-center justify-center shadow-sm shrink-0">
                                       <IconComp className="h-4 w-4 text-[#004D40]" />
                                     </div>
                                     <span className="font-semibold text-foreground">{topic.title}</span>
                                   </div>
                                   <div className="flex items-center gap-3 shrink-0 ml-4">
                                     {topic.duration && (
-                                      <span className="px-2.5 py-1 text-xs font-semibold rounded-md bg-white border border-border text-muted-foreground">
+                                      <span className="px-2.5 py-1 text-xs font-semibold rounded-md bg-white dark:bg-muted border border-border text-muted-foreground">
                                         {topic.duration}
                                       </span>
                                     )}

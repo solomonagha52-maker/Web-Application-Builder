@@ -301,8 +301,8 @@ export default function ScriptGenerator() {
       <div className="flex h-[calc(100vh-8rem)] -mx-4 md:-mx-8 -my-4 md:-my-8 overflow-hidden border-t border-border">
 
         {/* ── Left Panel: Module → Topic tree ───────────────────────── */}
-        <div className="w-72 bg-[#F0F4F4] border-r border-border flex flex-col shrink-0">
-          <div className="p-4 border-b border-border bg-[#F0F4F4]">
+        <div className="w-72 bg-[#F0F4F4] dark:bg-sidebar border-r border-border flex flex-col shrink-0">
+          <div className="p-4 border-b border-border bg-[#F0F4F4] dark:bg-sidebar">
             <h2 className="font-bold text-base flex items-center gap-2">
               <Layers className="h-4 w-4 text-[#004D40]" />
               Course Structure
@@ -330,8 +330,8 @@ export default function ScriptGenerator() {
                     className={cn(
                       "w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors",
                       expandedModules.has(mod.id)
-                        ? "bg-white/60 text-[#004D40]"
-                        : "hover:bg-black/5 text-foreground"
+                        ? "bg-white/60 dark:bg-white/10 text-[#004D40] dark:text-[#00BFA5]"
+                        : "hover:bg-black/5 dark:hover:bg-white/10 text-foreground"
                     )}
                   >
                     {expandedModules.has(mod.id)
@@ -345,7 +345,7 @@ export default function ScriptGenerator() {
 
                   {/* Topics list */}
                   {expandedModules.has(mod.id) && (
-                    <div className="bg-white/40">
+                    <div className="bg-white/40 dark:bg-white/5">
                       {mod.topics.map((topic, ti) => (
                         <button
                           key={topic.id}
@@ -353,8 +353,8 @@ export default function ScriptGenerator() {
                           className={cn(
                             "w-full text-left pl-8 pr-3 py-2.5 text-sm transition-colors flex items-start gap-2",
                             activeTopicId === topic.id
-                              ? "bg-white border-l-4 border-[#004D40] shadow-sm text-[#004D40] font-medium"
-                              : "hover:bg-white/60 text-foreground border-l-4 border-transparent"
+                              ? "bg-white dark:bg-card border-l-4 border-[#004D40] dark:border-[#00BFA5] shadow-sm text-[#004D40] dark:text-[#00BFA5] font-medium"
+                              : "hover:bg-white/60 dark:hover:bg-white/10 text-foreground border-l-4 border-transparent"
                           )}
                           data-testid={`btn-select-topic-${topic.id}`}
                         >
@@ -373,18 +373,18 @@ export default function ScriptGenerator() {
         </div>
 
         {/* ── Center Panel: Script editor ────────────────────────────── */}
-        <div className="flex-1 bg-white flex flex-col overflow-hidden">
+        <div className="flex-1 bg-white dark:bg-background flex flex-col overflow-hidden">
 
           {/* Topic header bar */}
           {activeTopic && (
-            <div className="px-8 py-4 border-b border-border bg-[#FAFAFA] flex items-center justify-between gap-4 shrink-0">
+            <div className="px-8 py-4 border-b border-border bg-[#FAFAFA] dark:bg-card flex items-center justify-between gap-4 shrink-0">
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground font-medium">{activeModule?.title}</p>
                 <h2 className="font-bold text-base truncate">{activeTopic.title}</h2>
               </div>
               <div className="flex items-center gap-2 shrink-0">
                 {wordCount > 0 && (
-                  <span className="text-xs text-muted-foreground bg-[#F0F4F4] px-3 py-1 rounded-full">
+                  <span className="text-xs text-muted-foreground bg-[#F0F4F4] dark:bg-muted px-3 py-1 rounded-full">
                     {wordCount.toLocaleString()} words
                   </span>
                 )}
@@ -443,7 +443,7 @@ export default function ScriptGenerator() {
                     Generate a detailed script with exactly 6 scenes and 1,000–1,500 words of
                     professional voiceover narration for:
                   </p>
-                  <div className="bg-[#F0F4F4] rounded-xl p-4 mb-8 max-w-sm w-full text-left">
+                  <div className="bg-[#F0F4F4] dark:bg-muted rounded-xl p-4 mb-8 max-w-sm w-full text-left">
                     <p className="text-xs text-muted-foreground font-medium mb-1">{activeModule?.title}</p>
                     <p className="font-semibold text-sm">{activeTopic.title}</p>
                   </div>
@@ -475,10 +475,10 @@ export default function ScriptGenerator() {
                 <div
                   key={scene.id}
                   className={cn(
-                    "bg-white border rounded-xl p-6 shadow-sm transition-colors",
+                    "bg-white dark:bg-card border rounded-xl p-6 shadow-sm transition-colors",
                     scene.is_locked
                       ? "border-[#004D40]/30 opacity-80"
-                      : "border-[#E5E7EB] hover:border-[#004D40]/30"
+                      : "border-[#E5E7EB] dark:border-border hover:border-[#004D40]/30"
                   )}
                   data-testid={`scene-card-${scene.id}`}
                 >
@@ -497,7 +497,7 @@ export default function ScriptGenerator() {
                     </div>
                   </div>
 
-                  <div className="bg-[#F0F4F4] p-4 rounded-md mb-4 border border-border/50">
+                  <div className="bg-[#F0F4F4] dark:bg-muted p-4 rounded-md mb-4 border border-border/50">
                     <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1 block">
                       Visual Cue
                     </span>
@@ -548,7 +548,7 @@ export default function ScriptGenerator() {
 
           {/* Finalize bar */}
           {!isTopicLocked && activeTopic && scenes.length > 0 && !generating && (
-            <div className="p-4 bg-white border-t border-border shrink-0">
+            <div className="p-4 bg-white dark:bg-card border-t border-border shrink-0">
               <div className="max-w-3xl mx-auto">
                 <button
                   className="w-full py-3 rounded-md bg-[#004D40] text-white font-bold hover:bg-[#003d33] transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
@@ -565,12 +565,12 @@ export default function ScriptGenerator() {
         </div>
 
         {/* ── Right Panel ────────────────────────────────────────────── */}
-        <div className="w-72 bg-[#F0F4F4] border-l border-border flex flex-col shrink-0 overflow-y-auto">
+        <div className="w-72 bg-[#F0F4F4] dark:bg-sidebar border-l border-border flex flex-col shrink-0 overflow-y-auto">
 
           {/* Audio Preview */}
           <div className="p-6 border-b border-border">
             <h2 className="font-bold text-lg mb-6">Audio Preview</h2>
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-border/50 flex flex-col items-center text-center">
+            <div className="bg-white dark:bg-card rounded-xl p-6 shadow-sm border border-border/50 flex flex-col items-center text-center">
               <button
                 className="h-16 w-16 bg-[#CCAC00] rounded-full flex items-center justify-center hover:bg-[#b39700] transition-colors shadow-md mb-4"
                 data-testid="btn-play-audio"
@@ -579,7 +579,7 @@ export default function ScriptGenerator() {
                 <PlayCircle className="h-8 w-8 text-white fill-current" />
               </button>
 
-              <span className="text-sm font-semibold bg-black/5 px-3 py-1 rounded-full mb-4">
+              <span className="text-sm font-semibold bg-black/5 dark:bg-white/10 px-3 py-1 rounded-full mb-4">
                 Neural Voice Pro
               </span>
 
@@ -637,11 +637,11 @@ export default function ScriptGenerator() {
               </button>
 
               {exportMenuOpen && (
-                <div className="absolute bottom-full mb-1 left-0 w-full bg-white border border-border rounded-lg shadow-lg overflow-hidden z-50">
+                <div className="absolute bottom-full mb-1 left-0 w-full bg-white dark:bg-card border border-border rounded-lg shadow-lg overflow-hidden z-50">
                   <button
                     data-testid="btn-export-pdf"
                     onClick={() => handleExport("pdf")}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-[#F0F4F4] transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-[#F0F4F4] dark:hover:bg-muted transition-colors text-left"
                   >
                     <span className="flex items-center justify-center h-8 w-8 rounded-md bg-red-50 shrink-0">
                       <FileText className="h-4 w-4 text-red-500" />
@@ -655,9 +655,9 @@ export default function ScriptGenerator() {
                   <button
                     data-testid="btn-export-docx"
                     onClick={() => handleExport("docx")}
-                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-[#F0F4F4] transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-[#F0F4F4] dark:hover:bg-muted transition-colors text-left"
                   >
-                    <span className="flex items-center justify-center h-8 w-8 rounded-md bg-blue-50 shrink-0">
+                    <span className="flex items-center justify-center h-8 w-8 rounded-md bg-blue-50 dark:bg-blue-950 shrink-0">
                       <FileType2 className="h-4 w-4 text-blue-500" />
                     </span>
                     <div>
