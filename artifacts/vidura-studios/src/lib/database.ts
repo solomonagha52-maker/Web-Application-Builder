@@ -279,12 +279,21 @@ export async function uploadAvatar(userId: string, file: File): Promise<string> 
 
   if (error) throw error;
 
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from("avatars").getPublicUrl(data.path);
-  // Append a cache-buster so the browser always fetches the new image
-  // instead of serving the stale cached version from the same URL path.
-  return `${publicUrl}?t=${Date.now()}`;
+  // Use a signed URL (10-year expiry) so the avatar loads regardless of
+  // whether the bucket is configured as public or private. Public URLs
+  // return 400 from private buckets and silently fail in <img> tags.
+  const TEN_YEARS = 60 * 60 * 24 * 365 * 10;
+  const { data: signed, error: signedError } = await supabase.storage
+    .from("avatars")
+    .createSignedUrl(data.path, TEN_YEARS);
+
+  if (signedError || !signed?.signedUrl) {
+    // Last-resort fallback: public URL with cache-buster
+    const { data: { publicUrl } } = supabase.storage.from("avatars").getPublicUrl(data.path);
+    return `${publicUrl}?t=${Date.now()}`;
+  }
+
+  return signed.signedUrl;
 }
 
 export async function uploadPdf(userId: string, file: File): Promise<string | null> {
