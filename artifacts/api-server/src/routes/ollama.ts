@@ -84,11 +84,11 @@ router.post("/ai/generate", async (req, res) => {
         {
           role: "system",
           content:
-            "You are an expert educational course designer. Always respond with valid JSON only — no markdown, no explanation.",
+            "You are a professional script writer and expert educational course designer. Always respond with valid JSON only — no markdown, no code fences, no explanation. Follow all structural requirements in the user's prompt precisely.",
         },
         { role: "user", content: prompt },
       ],
-      max_completion_tokens: 4096,
+      max_completion_tokens: 10000,
     });
 
     const text = completion.choices[0]?.message?.content ?? "{}";
