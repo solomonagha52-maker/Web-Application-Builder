@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Vidura Studios"
+version = "1.0.0"
+id = "artifacts/vidura-studios"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 25243
+
+[services.development]
+run = "pnpm --filter @workspace/vidura-studios run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/vidura-studios", "run", "build" ]
+publicDir = "artifacts/vidura-studios/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "25243"
+BASE_PATH = "/"
