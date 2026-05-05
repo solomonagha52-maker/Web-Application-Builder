@@ -6,6 +6,19 @@ import { useAuth, getInitials } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
 
+function getStoredTheme(): boolean {
+  return localStorage.getItem("vidura_theme") === "dark";
+}
+
+function applyTheme(dark: boolean) {
+  if (dark) {
+    document.documentElement.classList.add("dark");
+  } else {
+    document.documentElement.classList.remove("dark");
+  }
+  localStorage.setItem("vidura_theme", dark ? "dark" : "light");
+}
+
 export default function Settings() {
   const { profile, user, signOut, updateProfile } = useAuth();
   const { toast } = useToast();
@@ -16,7 +29,7 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
 
-  const [theme, setTheme] = useState(false);
+  const [theme, setTheme] = useState(getStoredTheme);
   const [emailReports, setEmailReports] = useState(true);
   const [alerts, setAlerts] = useState(true);
 
@@ -26,6 +39,16 @@ export default function Settings() {
       setEmail(profile.email || user?.email || "");
     }
   }, [profile, user]);
+
+  // Sync dark class when component mounts (in case page was refreshed)
+  useEffect(() => {
+    applyTheme(theme);
+  }, []);
+
+  const handleThemeToggle = (dark: boolean) => {
+    setTheme(dark);
+    applyTheme(dark);
+  };
 
   const initials = getInitials(fullName || profile?.full_name || "VS");
   const role = profile?.role || "Course Director";
@@ -44,6 +67,7 @@ export default function Settings() {
 
   const handleSignOut = async () => {
     setSigningOut(true);
+    applyTheme(false); // reset theme on sign-out
     await signOut();
     setLocation("/");
   };
@@ -80,7 +104,7 @@ export default function Settings() {
         <h1 className="text-3xl font-bold mb-8">Account Settings</h1>
 
         {/* Profile card */}
-        <div className="bg-white border border-border rounded-2xl p-8 mb-8 shadow-sm">
+        <div className="bg-white dark:bg-card border border-border rounded-2xl p-8 mb-8 shadow-sm">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
             <Avatar className="h-24 w-24 border-4 border-[#F0F4F4]">
               <AvatarFallback className="bg-[#004D40] text-white text-3xl font-bold">
@@ -99,7 +123,7 @@ export default function Settings() {
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           {/* Identity */}
-          <div className="bg-white border border-border rounded-2xl p-8 shadow-sm">
+          <div className="bg-white dark:bg-card border border-border rounded-2xl p-8 shadow-sm">
             <h3 className="text-xl font-bold mb-6 pb-4 border-b border-border">Identity</h3>
             <form className="space-y-5" onSubmit={handleSave}>
               <div>
@@ -108,7 +132,7 @@ export default function Settings() {
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-md border border-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#004D40] bg-[#F0F4F4] text-sm"
+                  className="w-full px-4 py-2.5 rounded-md border border-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#004D40] bg-[#F0F4F4] dark:bg-muted dark:border-border text-sm"
                   data-testid="input-settings-name"
                 />
               </div>
@@ -118,7 +142,7 @@ export default function Settings() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-md border border-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#004D40] bg-[#F0F4F4] text-sm"
+                  className="w-full px-4 py-2.5 rounded-md border border-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#004D40] bg-[#F0F4F4] dark:bg-muted dark:border-border text-sm"
                   data-testid="input-settings-email"
                 />
               </div>
@@ -142,15 +166,17 @@ export default function Settings() {
           </div>
 
           {/* System Preferences */}
-          <div className="bg-white border border-border rounded-2xl p-8 shadow-sm">
+          <div className="bg-white dark:bg-card border border-border rounded-2xl p-8 shadow-sm">
             <h3 className="text-xl font-bold mb-6 pb-4 border-b border-border">System Preferences</h3>
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <div>
                   <h4 className="font-semibold">Interface Theme</h4>
-                  <p className="text-sm text-muted-foreground">Enable dark mode for the studio</p>
+                  <p className="text-sm text-muted-foreground">
+                    {theme ? "Dark mode enabled" : "Light mode enabled"}
+                  </p>
                 </div>
-                <Toggle value={theme} onChange={setTheme} testId="toggle-theme" />
+                <Toggle value={theme} onChange={handleThemeToggle} testId="toggle-theme" />
               </div>
 
               <div className="pt-2 border-t border-border">
@@ -175,7 +201,7 @@ export default function Settings() {
 
               <div className="pt-2 border-t border-border">
                 <h4 className="font-semibold mb-2 text-sm">Region Server</h4>
-                <div className="w-full px-4 py-2.5 rounded-md border border-[#E5E7EB] bg-[#F0F4F4] text-sm font-medium">
+                <div className="w-full px-4 py-2.5 rounded-md border border-[#E5E7EB] dark:border-border bg-[#F0F4F4] dark:bg-muted text-sm font-medium">
                   North America (US-East)
                 </div>
               </div>
