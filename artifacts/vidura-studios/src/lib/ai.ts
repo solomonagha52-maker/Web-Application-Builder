@@ -119,7 +119,7 @@ ${pdfText.substring(0, 9000)}`;
   }
 }
 
-// ── Per-topic script generation (6 scenes, 3,000–5,000 words) ─────
+// ── Per-topic script generation (6 scenes, 1,000–1,500 words) ─────
 export async function generateTopicScript(
   courseTitle: string,
   moduleTitle: string,
@@ -135,8 +135,8 @@ Topic ${topicIndex + 1}: "${topicTitle}"
 
 STRICT REQUIREMENTS:
 1. Generate EXACTLY 6 scenes for this topic.
-2. The combined script_text across all 6 scenes must be between 1,500 and 3,000 words.
-3. Each scene's script_text must be between 250 and 500 words — clear, detailed, educational narration written in an engaging instructional voice.
+2. The combined script_text across all 6 scenes must be between 1,000 and 1,500 words.
+3. Each scene's script_text must be between 165 and 250 words — clear, focused, educational narration written in an engaging instructional voice.
 4. Each scene must cover a distinct aspect or sub-section of the topic.
 5. Scene progression must flow logically: introduction → core concepts → detailed explanation → examples/applications → analysis → synthesis/summary.
 6. Each visual_cue must be a vivid, production-ready description of on-screen content (animated diagrams, data visualisations, case footage, step-by-step breakdowns, comparison charts, etc.).
@@ -154,37 +154,37 @@ Exact structure:
       "scene_number": 1,
       "title": "Scene 1: Introduction to [specific aspect]",
       "visual_cue": "Detailed description of what appears on screen during this narration.",
-      "script_text": "Full 250–500 word voiceover narration for this scene..."
+      "script_text": "Full 165–250 word voiceover narration for this scene..."
     },
     {
       "scene_number": 2,
       "title": "Scene 2: [specific sub-topic]",
       "visual_cue": "Detailed production-ready visual description.",
-      "script_text": "Full 250–500 word voiceover narration..."
+      "script_text": "Full 165–250 word voiceover narration..."
     },
     {
       "scene_number": 3,
       "title": "Scene 3: [specific sub-topic]",
       "visual_cue": "Detailed production-ready visual description.",
-      "script_text": "Full 250–500 word voiceover narration..."
+      "script_text": "Full 165–250 word voiceover narration..."
     },
     {
       "scene_number": 4,
       "title": "Scene 4: [specific sub-topic]",
       "visual_cue": "Detailed production-ready visual description.",
-      "script_text": "Full 250–500 word voiceover narration..."
+      "script_text": "Full 165–250 word voiceover narration..."
     },
     {
       "scene_number": 5,
       "title": "Scene 5: [specific sub-topic]",
       "visual_cue": "Detailed production-ready visual description.",
-      "script_text": "Full 250–500 word voiceover narration..."
+      "script_text": "Full 165–250 word voiceover narration..."
     },
     {
       "scene_number": 6,
       "title": "Scene 6: Synthesis and Key Takeaways",
       "visual_cue": "Detailed production-ready visual description.",
-      "script_text": "Full 250–500 word voiceover narration..."
+      "script_text": "Full 165–250 word voiceover narration..."
     }
   ]
 }`;

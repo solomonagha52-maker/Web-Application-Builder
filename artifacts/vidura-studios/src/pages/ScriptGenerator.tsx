@@ -420,7 +420,7 @@ export default function ScriptGenerator() {
                   <h3 className="text-lg font-semibold mb-2">Select a topic to begin</h3>
                   <p className="text-muted-foreground text-sm max-w-sm">
                     Choose a topic from the course structure on the left. Each topic generates
-                    6 detailed scenes of 1,500–3,000 words.
+                    6 detailed scenes of 1,000–1,500 words.
                   </p>
                 </div>
               )}
@@ -440,7 +440,7 @@ export default function ScriptGenerator() {
                   </div>
                   <h3 className="text-xl font-bold mb-3">No script yet for this topic</h3>
                   <p className="text-muted-foreground text-sm max-w-sm mb-8 leading-relaxed">
-                    Generate a detailed script with exactly 6 scenes and 1,500–3,000 words of
+                    Generate a detailed script with exactly 6 scenes and 1,000–1,500 words of
                     professional voiceover narration for:
                   </p>
                   <div className="bg-[#F0F4F4] rounded-xl p-4 mb-8 max-w-sm w-full text-left">
@@ -464,7 +464,7 @@ export default function ScriptGenerator() {
                   <Loader2 className="h-10 w-10 animate-spin text-[#004D40] mb-6" />
                   <h3 className="text-lg font-bold mb-2">Writing script…</h3>
                   <p className="text-muted-foreground text-sm max-w-sm">
-                    Generating 6 scenes with 1,500–3,000 words of detailed narration. This takes
+                    Generating 6 scenes with 1,000–1,500 words of detailed narration. This takes
                     15–30 seconds.
                   </p>
                 </div>
@@ -689,14 +689,14 @@ export default function ScriptGenerator() {
                   <span className="text-muted-foreground">Word count</span>
                   <span className={cn(
                     "font-semibold",
-                    wordCount >= 1500 && wordCount <= 3000 ? "text-[#004D40]" : wordCount > 0 ? "text-amber-600" : ""
+                    wordCount >= 1000 && wordCount <= 1500 ? "text-[#004D40]" : wordCount > 0 ? "text-amber-600" : ""
                   )}>
                     {wordCount.toLocaleString()}
                   </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Target</span>
-                  <span className="text-muted-foreground">1,500–3,000</span>
+                  <span className="text-muted-foreground">1,000–1,500</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Type</span>
