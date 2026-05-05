@@ -8,13 +8,14 @@ import logoPath from "@assets/logo_1777977950187.png";
 
 export default function Signup() {
   const [, setLocation] = useLocation();
-  const { signUp, user } = useAuth();
+  const { signUp, signInWithGoogle, user } = useAuth();
   const { toast } = useToast();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
     if (user) setLocation("/dashboard");
@@ -50,11 +51,26 @@ export default function Signup() {
     }
   };
 
+  const handleGoogleSignUp = async () => {
+    setGoogleLoading(true);
+    const { error } = await signInWithGoogle();
+    setGoogleLoading(false);
+    if (error) {
+      toast({
+        title: "Google sign-up failed",
+        description: error.message.includes("provider is not enabled")
+          ? "Enable Google OAuth in your Supabase Authentication → Providers settings."
+          : error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   if (user) return null;
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-white rounded-xl border border-[#E5E7EB] p-8 shadow-sm my-8">
+      <div className="w-full max-w-md bg-white dark:bg-card rounded-xl border border-[#E5E7EB] dark:border-border p-8 shadow-sm my-8">
         <div className="flex justify-center mb-8">
           <Link href="/">
             <img src={logoPath} alt="Vidura Studios" className="h-10 object-contain cursor-pointer" />
@@ -71,7 +87,7 @@ export default function Signup() {
               type="text"
               required
               autoComplete="name"
-              className="w-full px-4 py-2.5 rounded-md border border-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#004D40] focus:border-transparent transition-shadow text-sm"
+              className="w-full px-4 py-2.5 rounded-md border border-[#E5E7EB] dark:border-border focus:outline-none focus:ring-2 focus:ring-[#004D40] focus:border-transparent transition-shadow text-sm bg-white dark:bg-muted text-foreground"
               placeholder="Dr. Victoria Stone"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -84,7 +100,7 @@ export default function Signup() {
               type="email"
               required
               autoComplete="email"
-              className="w-full px-4 py-2.5 rounded-md border border-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#004D40] focus:border-transparent transition-shadow text-sm"
+              className="w-full px-4 py-2.5 rounded-md border border-[#E5E7EB] dark:border-border focus:outline-none focus:ring-2 focus:ring-[#004D40] focus:border-transparent transition-shadow text-sm bg-white dark:bg-muted text-foreground"
               placeholder="you@university.edu"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -97,7 +113,7 @@ export default function Signup() {
               type="password"
               required
               autoComplete="new-password"
-              className="w-full px-4 py-2.5 rounded-md border border-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#004D40] focus:border-transparent transition-shadow text-sm"
+              className="w-full px-4 py-2.5 rounded-md border border-[#E5E7EB] dark:border-border focus:outline-none focus:ring-2 focus:ring-[#004D40] focus:border-transparent transition-shadow text-sm bg-white dark:bg-muted text-foreground"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -110,7 +126,7 @@ export default function Signup() {
               type="password"
               required
               autoComplete="new-password"
-              className="w-full px-4 py-2.5 rounded-md border border-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#004D40] focus:border-transparent transition-shadow text-sm"
+              className="w-full px-4 py-2.5 rounded-md border border-[#E5E7EB] dark:border-border focus:outline-none focus:ring-2 focus:ring-[#004D40] focus:border-transparent transition-shadow text-sm bg-white dark:bg-muted text-foreground"
               placeholder="••••••••"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
@@ -136,14 +152,13 @@ export default function Signup() {
         </div>
 
         <button
-          className="mt-4 w-full py-3 rounded-md bg-white border border-[#E5E7EB] font-medium flex items-center justify-center gap-3 hover:bg-black/5 transition-colors text-sm"
+          className="mt-4 w-full py-3 rounded-md bg-white dark:bg-muted border border-[#E5E7EB] dark:border-border font-medium flex items-center justify-center gap-3 hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-sm text-foreground disabled:opacity-60"
           data-testid="btn-signup-google"
-          onClick={() =>
-            toast({ title: "Google sign-up not configured", description: "Connect Google OAuth in your Supabase dashboard." })
-          }
+          disabled={googleLoading}
+          onClick={handleGoogleSignUp}
         >
-          <SiGoogle className="text-lg" />
-          Sign up with Google
+          {googleLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <SiGoogle className="text-lg" />}
+          {googleLoading ? "Redirecting…" : "Sign up with Google"}
         </button>
 
         <p className="mt-8 text-center text-sm text-muted-foreground">

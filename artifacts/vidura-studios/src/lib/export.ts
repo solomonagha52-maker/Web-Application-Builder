@@ -13,7 +13,7 @@ export interface ExportPayload {
 // ─────────────────────────────────────────────────────────────
 
 function buildFilename(moduleName: string, ext: "pdf" | "docx"): string {
-  const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const today = new Date().toISOString().slice(0, 10);
   const safe = moduleName
     .replace(/[^a-zA-Z0-9\s-]/g, "")
     .trim()
@@ -46,30 +46,57 @@ export async function exportScriptAsPDF(payload: ExportPayload): Promise<void> {
   const MARGIN_L = 20;
   const MARGIN_R = 20;
   const CONTENT_W = PAGE_W - MARGIN_L - MARGIN_R;
-  const MARGIN_TOP = 18;
   const FOOTER_H = 14;
   const USABLE_H = PAGE_H - FOOTER_H;
 
-  let y = MARGIN_TOP;
-
-  // ── Branded teal header bar ──────────────────────────────
-  doc.setFillColor(0, 77, 64); // #004D40
-  doc.rect(0, 0, PAGE_W, 14, "F");
-
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(10);
-  doc.setTextColor(255, 255, 255);
-  doc.text("VIDURA STUDIOS", MARGIN_L, 9);
+  let y = 0;
 
   const headerDate = new Date().toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
     year: "numeric",
   });
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.text(headerDate, PAGE_W - MARGIN_R, 9, { align: "right" });
 
+  // ── Helper: draw header bar on current page ───────────────
+  const drawHeader = () => {
+    doc.setFillColor(0, 77, 64);
+    doc.rect(0, 0, PAGE_W, 14, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(255, 255, 255);
+    doc.text("VIDURA STUDIOS", MARGIN_L, 9);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.text(headerDate, PAGE_W - MARGIN_R, 9, { align: "right" });
+  };
+
+  // ── Helper: page footer ───────────────────────────────────
+  const addFooter = () => {
+    const pageNum = doc.getNumberOfPages();
+    doc.setFontSize(8);
+    doc.setFont("helvetica", "normal");
+    doc.setTextColor(160, 160, 160);
+    doc.text(`Page ${pageNum}`, PAGE_W / 2, PAGE_H - 6, { align: "center" });
+    doc.text("Vidura Studios — Script Export", MARGIN_L, PAGE_H - 6);
+  };
+
+  // ── Helper: add new page with header ─────────────────────
+  const addPage = () => {
+    addFooter();
+    doc.addPage();
+    drawHeader();
+    y = 22;
+  };
+
+  // ── Helper: check remaining space, break if needed ────────
+  // IMPORTANT: always re-apply your font/color/size AFTER calling ensureSpace
+  // because addPage() changes the document state.
+  const ensureSpace = (needed: number) => {
+    if (y + needed > USABLE_H) addPage();
+  };
+
+  // ── Page 1 header ────────────────────────────────────────
+  drawHeader();
   y = 22;
 
   // ── Course & Module info ─────────────────────────────────
@@ -93,39 +120,6 @@ export async function exportScriptAsPDF(payload: ExportPayload): Promise<void> {
   doc.line(MARGIN_L, y, PAGE_W - MARGIN_R, y);
   y += 6;
 
-  // ── Helper: add new page with header ─────────────────────
-  const addPage = () => {
-    addFooter();
-    doc.addPage();
-
-    doc.setFillColor(0, 77, 64);
-    doc.rect(0, 0, PAGE_W, 14, "F");
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(10);
-    doc.setTextColor(255, 255, 255);
-    doc.text("VIDURA STUDIOS", MARGIN_L, 9);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.text(headerDate, PAGE_W - MARGIN_R, 9, { align: "right" });
-
-    y = 22;
-  };
-
-  // ── Helper: page footer ───────────────────────────────────
-  const addFooter = () => {
-    const pageNum = doc.getNumberOfPages();
-    doc.setFontSize(8);
-    doc.setFont("helvetica", "normal");
-    doc.setTextColor(160, 160, 160);
-    doc.text(`Page ${pageNum}`, PAGE_W / 2, PAGE_H - 6, { align: "center" });
-    doc.text("Vidura Studios — Script Export", MARGIN_L, PAGE_H - 6);
-  };
-
-  // ── Helper: check remaining space ────────────────────────
-  const ensureSpace = (needed: number) => {
-    if (y + needed > USABLE_H) addPage();
-  };
-
   // ── Scenes ───────────────────────────────────────────────
   for (let i = 0; i < scenes.length; i++) {
     const scene = scenes[i];
@@ -139,54 +133,58 @@ export async function exportScriptAsPDF(payload: ExportPayload): Promise<void> {
       y += 6;
     }
 
-    // Scene title
-    ensureSpace(12);
+    // ── Scene title ─────────────────────────────────────────
+    const titleText = scene.title || `Scene ${i + 1}`;
+    // Split first so we know the height, then ensure space, then re-apply styles
+    const titleLines = doc.splitTextToSize(titleText, CONTENT_W);
+    ensureSpace(titleLines.length * 6 + 16);
+    // Re-apply after potential page break
     doc.setFont("helvetica", "bold");
     doc.setFontSize(12);
-    doc.setTextColor(0, 77, 64); // teal
-    const titleLines = doc.splitTextToSize(scene.title || `Scene ${i + 1}`, CONTENT_W);
-    ensureSpace(titleLines.length * 6 + 2);
+    doc.setTextColor(0, 77, 64);
     doc.text(titleLines, MARGIN_L, y);
     y += titleLines.length * 6 + 4;
 
-    // Visual Cue label
-    ensureSpace(10);
+    // ── Visual Cue label ────────────────────────────────────
+    ensureSpace(14);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7.5);
     doc.setTextColor(120, 120, 120);
     doc.text("VISUAL CUE", MARGIN_L, y);
     y += 4;
 
-    // Visual Cue text (italic)
+    // ── Visual Cue text ─────────────────────────────────────
     if (scene.visual_cue) {
+      const cueLines = doc.splitTextToSize(scene.visual_cue, CONTENT_W);
+      const cueH = cueLines.length * 5 + 8;
+      ensureSpace(cueH);
+      // Re-apply after potential page break
+      doc.setFillColor(240, 244, 244);
+      doc.roundedRect(MARGIN_L - 2, y - 3.5, CONTENT_W + 4, cueLines.length * 5 + 5, 1, 1, "F");
       doc.setFont("helvetica", "italic");
       doc.setFontSize(9.5);
       doc.setTextColor(80, 80, 80);
-      const cueLines = doc.splitTextToSize(scene.visual_cue, CONTENT_W);
-      ensureSpace(cueLines.length * 5 + 3);
-
-      // Light grey background for visual cue
-      doc.setFillColor(240, 244, 244);
-      doc.roundedRect(MARGIN_L - 2, y - 3.5, CONTENT_W + 4, cueLines.length * 5 + 5, 1, 1, "F");
       doc.text(cueLines, MARGIN_L, y);
       y += cueLines.length * 5 + 6;
     }
 
-    // Script label
-    ensureSpace(10);
+    // ── Script label ────────────────────────────────────────
+    ensureSpace(14);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(7.5);
     doc.setTextColor(0, 77, 64);
     doc.text("VOICEOVER SCRIPT", MARGIN_L, y);
     y += 4;
 
-    // Script text
+    // ── Script text ─────────────────────────────────────────
     if (scene.script_text) {
+      const scriptLines = doc.splitTextToSize(scene.script_text, CONTENT_W);
+      const scriptH = scriptLines.length * 5.5 + 4;
+      ensureSpace(scriptH);
+      // Re-apply after potential page break
       doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(26, 26, 26);
-      const scriptLines = doc.splitTextToSize(scene.script_text, CONTENT_W);
-      ensureSpace(scriptLines.length * 5.5 + 4);
       doc.text(scriptLines, MARGIN_L, y);
       y += scriptLines.length * 5.5 + 8;
     }
@@ -293,7 +291,6 @@ export async function exportScriptAsDocx(payload: ExportPayload): Promise<void> 
   for (let i = 0; i < scenes.length; i++) {
     const scene = scenes[i];
 
-    // Scene divider (after first)
     if (i > 0) {
       children.push(
         new Paragraph({
@@ -310,7 +307,6 @@ export async function exportScriptAsDocx(payload: ExportPayload): Promise<void> 
       );
     }
 
-    // Scene title
     children.push(
       new Paragraph({
         spacing: { before: 160, after: 80 },
@@ -326,7 +322,6 @@ export async function exportScriptAsDocx(payload: ExportPayload): Promise<void> 
       })
     );
 
-    // Visual Cue label
     children.push(
       new Paragraph({
         spacing: { before: 80, after: 40 },
@@ -343,7 +338,6 @@ export async function exportScriptAsDocx(payload: ExportPayload): Promise<void> 
       })
     );
 
-    // Visual Cue text (shaded box, italic)
     if (scene.visual_cue) {
       children.push(
         new Paragraph({
@@ -363,7 +357,6 @@ export async function exportScriptAsDocx(payload: ExportPayload): Promise<void> 
       );
     }
 
-    // Script label
     children.push(
       new Paragraph({
         spacing: { before: 80, after: 40 },
@@ -380,7 +373,6 @@ export async function exportScriptAsDocx(payload: ExportPayload): Promise<void> 
       })
     );
 
-    // Script text
     if (scene.script_text) {
       children.push(
         new Paragraph({

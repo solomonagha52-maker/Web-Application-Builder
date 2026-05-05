@@ -58,12 +58,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
       <nav className="flex-1 py-6 px-4 space-y-1">
         {navItems.map((item) => {
+          const exactActive = item.href === location;
           const isActive =
-            location === item.href ||
+            exactActive ||
             (item.href === "/course-structure" && location === "/course-structure") ||
             (item.href === "/script-generator" && location === "/script-generator") ||
             (item.href === "/settings" && location === "/settings");
-          const exactActive = item.href === location;
           return (
             <Link
               key={item.label}
@@ -72,10 +72,10 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               className={cn(
                 "flex items-center gap-3 px-4 py-3 rounded-md text-sm font-medium transition-colors duration-200",
                 exactActive || (item.href === "/dashboard" && (location === "/dashboard" || location === "/") && item.label === "Dashboard")
-                  ? "bg-black/5 text-[#004D40] border-l-4 border-[#004D40]"
+                  ? "bg-black/5 dark:bg-white/10 text-[#004D40] dark:text-[#00BFA5] border-l-4 border-[#004D40] dark:border-[#00BFA5]"
                   : isActive && item.href !== "/dashboard"
-                  ? "bg-black/5 text-[#004D40] border-l-4 border-[#004D40]"
-                  : "text-sidebar-foreground hover:bg-black/5"
+                  ? "bg-black/5 dark:bg-white/10 text-[#004D40] dark:text-[#00BFA5] border-l-4 border-[#004D40] dark:border-[#00BFA5]"
+                  : "text-sidebar-foreground hover:bg-black/5 dark:hover:bg-white/10"
               )}
               data-testid={`nav-item-${item.label.toLowerCase().replace(/\s+/g, "-")}`}
             >
@@ -105,7 +105,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar — Desktop */}
-      <aside className="hidden md:flex flex-col w-64 bg-[#F0F4F4] fixed h-full border-r border-sidebar-border z-20">
+      <aside className="hidden md:flex flex-col w-64 bg-[#F0F4F4] dark:bg-sidebar fixed h-full border-r border-sidebar-border z-20">
         <Sidebar />
       </aside>
 
@@ -120,7 +120,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Sidebar — Mobile */}
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 w-64 bg-[#F0F4F4] transform transition-transform duration-300 ease-in-out z-50 flex flex-col md:hidden border-r border-sidebar-border",
+          "fixed inset-y-0 left-0 w-64 bg-[#F0F4F4] dark:bg-sidebar transform transition-transform duration-300 ease-in-out z-50 flex flex-col md:hidden border-r border-sidebar-border",
           mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
         )}
       >
@@ -130,7 +130,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       {/* Main content */}
       <div className="flex-1 flex flex-col md:ml-64 min-h-screen">
         {/* Topbar */}
-        <header className="h-16 bg-white border-b border-border flex items-center justify-between px-4 md:px-8 sticky top-0 z-10">
+        <header className="h-16 bg-white dark:bg-card border-b border-border flex items-center justify-between px-4 md:px-8 sticky top-0 z-10">
           <div className="flex items-center gap-4">
             <button
               className="md:hidden p-2 text-foreground hover:bg-accent rounded-md"
@@ -144,7 +144,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <input
                 type="text"
                 placeholder="Search projects…"
-                className="w-full pl-10 pr-4 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-[#004D40]"
+                className="w-full pl-10 pr-4 py-2 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-[#004D40] text-foreground"
                 data-testid="input-search"
               />
             </div>

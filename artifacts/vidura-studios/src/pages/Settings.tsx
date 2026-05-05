@@ -30,8 +30,12 @@ export default function Settings() {
   const [signingOut, setSigningOut] = useState(false);
 
   const [theme, setTheme] = useState(getStoredTheme);
-  const [emailReports, setEmailReports] = useState(true);
-  const [alerts, setAlerts] = useState(true);
+  const [emailReports, setEmailReports] = useState(
+    () => localStorage.getItem("vidura_email_reports") !== "false"
+  );
+  const [alerts, setAlerts] = useState(
+    () => localStorage.getItem("vidura_alerts") !== "false"
+  );
 
   useEffect(() => {
     if (profile) {
@@ -40,7 +44,6 @@ export default function Settings() {
     }
   }, [profile, user]);
 
-  // Sync dark class when component mounts (in case page was refreshed)
   useEffect(() => {
     applyTheme(theme);
   }, []);
@@ -48,6 +51,16 @@ export default function Settings() {
   const handleThemeToggle = (dark: boolean) => {
     setTheme(dark);
     applyTheme(dark);
+  };
+
+  const handleEmailReports = (v: boolean) => {
+    setEmailReports(v);
+    localStorage.setItem("vidura_email_reports", String(v));
+  };
+
+  const handleAlerts = (v: boolean) => {
+    setAlerts(v);
+    localStorage.setItem("vidura_alerts", String(v));
   };
 
   const initials = getInitials(fullName || profile?.full_name || "VS");
@@ -59,7 +72,13 @@ export default function Settings() {
     const { error } = await updateProfile({ full_name: fullName, email });
     setSaving(false);
     if (error) {
-      toast({ title: "Failed to save changes", description: error.message, variant: "destructive" });
+      toast({
+        title: "Failed to save changes",
+        description: error.message.includes("email")
+          ? "Email change requires confirmation — check your inbox for a verification link."
+          : error.message,
+        variant: "destructive",
+      });
     } else {
       toast({ title: "Profile updated successfully" });
     }
@@ -67,7 +86,7 @@ export default function Settings() {
 
   const handleSignOut = async () => {
     setSigningOut(true);
-    applyTheme(false); // reset theme on sign-out
+    applyTheme(false);
     await signOut();
     setLocation("/");
   };
@@ -84,7 +103,7 @@ export default function Settings() {
     <button
       onClick={() => onChange(!value)}
       className={`w-12 h-6 rounded-full relative transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#004D40] ${
-        value ? "bg-[#004D40]" : "bg-[#E5E7EB]"
+        value ? "bg-[#004D40]" : "bg-[#E5E7EB] dark:bg-muted"
       }`}
       data-testid={testId}
       aria-checked={value}
@@ -106,7 +125,7 @@ export default function Settings() {
         {/* Profile card */}
         <div className="bg-white dark:bg-card border border-border rounded-2xl p-8 mb-8 shadow-sm">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-            <Avatar className="h-24 w-24 border-4 border-[#F0F4F4]">
+            <Avatar className="h-24 w-24 border-4 border-[#F0F4F4] dark:border-muted">
               <AvatarFallback className="bg-[#004D40] text-white text-3xl font-bold">
                 {initials}
               </AvatarFallback>
@@ -132,7 +151,7 @@ export default function Settings() {
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-md border border-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#004D40] bg-[#F0F4F4] dark:bg-muted dark:border-border text-sm"
+                  className="w-full px-4 py-2.5 rounded-md border border-[#E5E7EB] dark:border-border focus:outline-none focus:ring-2 focus:ring-[#004D40] bg-[#F0F4F4] dark:bg-muted text-foreground text-sm"
                   data-testid="input-settings-name"
                 />
               </div>
@@ -142,14 +161,10 @@ export default function Settings() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-2.5 rounded-md border border-[#E5E7EB] focus:outline-none focus:ring-2 focus:ring-[#004D40] bg-[#F0F4F4] dark:bg-muted dark:border-border text-sm"
+                  className="w-full px-4 py-2.5 rounded-md border border-[#E5E7EB] dark:border-border focus:outline-none focus:ring-2 focus:ring-[#004D40] bg-[#F0F4F4] dark:bg-muted text-foreground text-sm"
                   data-testid="input-settings-email"
                 />
-              </div>
-              <div>
-                <button type="button" className="text-sm font-bold text-[#004D40] hover:underline" data-testid="btn-update-avatar">
-                  Update Avatar Photo
-                </button>
+                <p className="text-xs text-muted-foreground mt-1">Email changes require inbox confirmation.</p>
               </div>
               <div className="pt-4">
                 <button
@@ -187,14 +202,14 @@ export default function Settings() {
                       <p className="font-medium text-sm">Email Reports</p>
                       <p className="text-xs text-muted-foreground">Weekly course generation summaries</p>
                     </div>
-                    <Toggle value={emailReports} onChange={setEmailReports} testId="toggle-email" />
+                    <Toggle value={emailReports} onChange={handleEmailReports} testId="toggle-email" />
                   </div>
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="font-medium text-sm">Real-time Alerts</p>
                       <p className="text-xs text-muted-foreground">Notify when AI processing finishes</p>
                     </div>
-                    <Toggle value={alerts} onChange={setAlerts} testId="toggle-alerts" />
+                    <Toggle value={alerts} onChange={handleAlerts} testId="toggle-alerts" />
                   </div>
                 </div>
               </div>
