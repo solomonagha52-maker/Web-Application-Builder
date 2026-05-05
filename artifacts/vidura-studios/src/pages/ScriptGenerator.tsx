@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
 import {
-  PlayCircle, Download, RefreshCw, Layers, Loader2, Plus, Lock,
+  Download, RefreshCw, Layers, Loader2, Plus, Lock,
   FileText, FileType2, ChevronDown, ChevronRight, Sparkles, BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -566,50 +566,6 @@ export default function ScriptGenerator() {
 
         {/* ── Right Panel ────────────────────────────────────────────── */}
         <div className="w-72 bg-[#F0F4F4] dark:bg-sidebar border-l border-border flex flex-col shrink-0 overflow-y-auto">
-
-          {/* Audio Preview */}
-          <div className="p-6 border-b border-border">
-            <h2 className="font-bold text-lg mb-6">Audio Preview</h2>
-            <div className="bg-white dark:bg-card rounded-xl p-6 shadow-sm border border-border/50 flex flex-col items-center text-center">
-              <button
-                className="h-16 w-16 bg-[#CCAC00] rounded-full flex items-center justify-center hover:bg-[#b39700] transition-colors shadow-md mb-4"
-                data-testid="btn-play-audio"
-                onClick={() => toast({ title: "Audio preview", description: "Connect a TTS API to enable audio playback." })}
-              >
-                <PlayCircle className="h-8 w-8 text-white fill-current" />
-              </button>
-
-              <span className="text-sm font-semibold bg-black/5 dark:bg-white/10 px-3 py-1 rounded-full mb-4">
-                Neural Voice Pro
-              </span>
-
-              <div className="w-full space-y-2 mb-6">
-                <div className="h-1.5 w-full bg-border rounded-full overflow-hidden">
-                  <div className="h-full bg-[#004D40] w-1/3 rounded-full" />
-                </div>
-                <div className="flex justify-between text-xs text-muted-foreground font-medium">
-                  <span>0:00</span>
-                  <span>—:——</span>
-                </div>
-              </div>
-
-              <div className="w-full grid grid-cols-2 gap-2">
-                <button
-                  className="py-2 text-xs font-semibold rounded-md border border-[#004D40] text-[#004D40] hover:bg-black/5 transition-colors flex items-center justify-center gap-1"
-                  data-testid="btn-resync"
-                  onClick={() => toast({ title: "Re-sync", description: "Audio sync requires a TTS API connection." })}
-                >
-                  <RefreshCw className="h-3 w-3" /> Resync
-                </button>
-                <button
-                  className="py-2 text-xs font-semibold rounded-md bg-black/10 text-muted-foreground transition-colors flex items-center justify-center gap-1 cursor-not-allowed"
-                  disabled
-                >
-                  <Download className="h-3 w-3" /> Audio
-                </button>
-              </div>
-            </div>
-          </div>
 
           {/* Export Script */}
           <div className="p-6 border-b border-border">
