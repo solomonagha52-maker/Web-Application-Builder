@@ -2,7 +2,7 @@
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Vidura Studios — an EdTech SaaS platform for uploading PDFs, generating AI-structured courses, and creating video scripts.
+pnpm workspace monorepo using TypeScript. Vidura Studios — an EdTech SaaS platform for uploading PDFs, generating AI-structured courses, and creating video scripts. TTS functionality removed; avatar upload uses signed URLs.
 
 ## Stack
 
