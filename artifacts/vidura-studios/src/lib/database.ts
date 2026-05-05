@@ -271,17 +271,17 @@ export async function saveAIResults(
 
 export async function uploadAvatar(userId: string, file: File): Promise<string> {
   const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
-  const fileName = `avatars/${userId}/avatar.${ext}`;
+  const fileName = `${userId}/avatar.${ext}`;
 
   const { data, error } = await supabase.storage
-    .from("pdfs")
+    .from("avatars")
     .upload(fileName, file, { contentType: file.type, upsert: true });
 
   if (error) throw error;
 
   const {
     data: { publicUrl },
-  } = supabase.storage.from("pdfs").getPublicUrl(data.path);
+  } = supabase.storage.from("avatars").getPublicUrl(data.path);
   return publicUrl;
 }
 
