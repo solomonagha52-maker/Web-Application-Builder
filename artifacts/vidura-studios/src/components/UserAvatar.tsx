@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useState, useEffect } from "react";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
@@ -12,13 +12,12 @@ interface UserAvatarProps {
 }
 
 /**
- * Displays a user's avatar image when a URL is available,
- * or falls back to their initials when it is not (or when the image fails to load).
+ * Shows the user's profile photo when a URL is available and the image loads
+ * successfully. Falls back to initials on error or when no URL is stored.
  *
- * Load order:
- *   1. On mount — renders AvatarImage with the stored URL from the user's profile.
- *   2. On error  — AvatarFallback (initials) is shown automatically by Radix.
- *   3. No URL    — AvatarFallback (initials) is shown immediately.
+ * Uses a plain <img> tag instead of Radix AvatarImage to avoid Radix's
+ * internal image-status detection silently treating external URLs as "not
+ * loaded" and hiding the image even when the network request succeeds.
  */
 export default function UserAvatar({
   avatarUrl,
@@ -27,20 +26,35 @@ export default function UserAvatar({
   fallbackClassName,
   imgClassName,
 }: UserAvatarProps) {
+  const [imgFailed, setImgFailed] = useState(false);
+
+  // Reset failure flag whenever the URL changes (e.g. after a new upload)
+  useEffect(() => {
+    setImgFailed(false);
+  }, [avatarUrl]);
+
   const initials = getInitials(name || "VS");
+  const showImage = Boolean(avatarUrl) && !imgFailed;
 
   return (
     <Avatar className={className}>
-      {avatarUrl ? (
-        <AvatarImage
-          src={avatarUrl}
+      {showImage ? (
+        <img
+          src={avatarUrl!}
           alt={name}
-          className={cn("object-cover", imgClassName)}
+          onError={() => setImgFailed(true)}
+          className={cn(
+            "aspect-square h-full w-full object-cover rounded-full",
+            imgClassName
+          )}
         />
-      ) : null}
-      <AvatarFallback className={cn("bg-[#004D40] text-white font-bold", fallbackClassName)}>
-        {initials}
-      </AvatarFallback>
+      ) : (
+        <AvatarFallback
+          className={cn("bg-[#004D40] text-white font-bold", fallbackClassName)}
+        >
+          {initials}
+        </AvatarFallback>
+      )}
     </Avatar>
   );
 }
