@@ -1,6 +1,15 @@
-// Supabase client setup — replace env vars with your real values in .env
-// VITE_SUPABASE_URL, VITE_SUPABASE_KEY, VITE_AI_API_KEY
+import { createClient } from "@supabase/supabase-js";
 
-export const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-export const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_KEY;
-export const AI_API_KEY = import.meta.env.VITE_AI_API_KEY;
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
+const supabaseKey = import.meta.env.VITE_SUPABASE_KEY as string;
+
+if (!supabaseUrl || !supabaseKey) {
+  throw new Error(
+    "Missing Supabase environment variables. Check VITE_SUPABASE_URL and VITE_SUPABASE_KEY in your .env file."
+  );
+}
+
+export const supabase = createClient(supabaseUrl, supabaseKey);
+
+// AI API endpoint (Ollama or compatible)
+export const AI_API_URL = import.meta.env.VITE_AI_API_KEY as string;
