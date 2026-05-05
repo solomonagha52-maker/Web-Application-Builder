@@ -42,6 +42,16 @@ export interface Scene {
   updated_at?: string;
 }
 
+export async function getProjectById(projectId: string): Promise<Project | null> {
+  const { data, error } = await supabase
+    .from("projects")
+    .select("*")
+    .eq("id", projectId)
+    .single();
+  if (error) return null;
+  return data as Project;
+}
+
 export async function getProjects(userId: string): Promise<Project[]> {
   const { data, error } = await supabase
     .from("projects")

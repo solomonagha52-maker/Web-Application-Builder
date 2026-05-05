@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
-import { PlayCircle, Download, RefreshCw, Layers, Loader2, Plus, Lock } from "lucide-react";
+import { PlayCircle, Download, RefreshCw, Layers, Loader2, Plus, Lock, FileText, FileType2, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import {
   getProjectModules,
+  getProjectById,
   getModuleScenes,
   updateScene,
   addSceneToModule,
@@ -13,6 +14,7 @@ import {
   type Module,
   type Scene,
 } from "@/lib/database";
+import { exportScriptAsPDF, exportScriptAsDocx } from "@/lib/export";
 
 export default function ScriptGenerator() {
   const { user } = useAuth();
@@ -26,12 +28,20 @@ export default function ScriptGenerator() {
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [locking, setLocking] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
+  const [projectTitle, setProjectTitle] = useState<string>("");
+  const [exporting, setExporting] = useState(false);
+  const [exportMenuOpen, setExportMenuOpen] = useState(false);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   const loadModules = useCallback(async (pid: string) => {
     setLoadingModules(true);
     try {
-      const data = await getProjectModules(pid);
+      const [data, project] = await Promise.all([
+        getProjectModules(pid),
+        getProjectById(pid),
+      ]);
       setModules(data);
+      if (project) setProjectTitle(project.title);
       if (data.length > 0 && !activeModuleId) {
         setActiveModuleId(data[0].id);
       }
@@ -67,6 +77,19 @@ export default function ScriptGenerator() {
   useEffect(() => {
     if (activeModuleId) loadScenes(activeModuleId);
   }, [activeModuleId, loadScenes]);
+
+  // Close export menu on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (exportMenuRef.current && !exportMenuRef.current.contains(e.target as Node)) {
+        setExportMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const activeModule = modules.find((m) => m.id === activeModuleId);
 
   const handleScriptChange = async (sceneId: string, newText: string) => {
     setSaving((prev) => ({ ...prev, [sceneId]: true }));
@@ -115,6 +138,33 @@ export default function ScriptGenerator() {
       toast({ title: "Failed to lock module", variant: "destructive" });
     } finally {
       setLocking(false);
+    }
+  };
+
+  const handleExport = async (format: "pdf" | "docx") => {
+    setExportMenuOpen(false);
+    if (!activeModule || scenes.length === 0) {
+      toast({ title: "Nothing to export", description: "Select a module with scenes first.", variant: "destructive" });
+      return;
+    }
+    setExporting(true);
+    try {
+      const payload = {
+        courseName: projectTitle || "Untitled Course",
+        moduleName: activeModule.title,
+        scenes,
+      };
+      if (format === "pdf") {
+        await exportScriptAsPDF(payload);
+        toast({ title: "PDF downloaded", description: `${activeModule.title} exported as PDF.` });
+      } else {
+        await exportScriptAsDocx(payload);
+        toast({ title: "Word document downloaded", description: `${activeModule.title} exported as .docx.` });
+      }
+    } catch (err) {
+      toast({ title: "Export failed", description: "Could not generate the file. Please try again.", variant: "destructive" });
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -296,8 +346,10 @@ export default function ScriptGenerator() {
           )}
         </div>
 
-        {/* Right Panel — Audio Preview */}
+        {/* Right Panel */}
         <div className="w-72 bg-[#F0F4F4] border-l border-border flex flex-col shrink-0 overflow-y-auto">
+
+          {/* Audio Preview */}
           <div className="p-6 border-b border-border">
             <h2 className="font-bold text-lg mb-6">Audio Preview</h2>
             <div className="bg-white rounded-xl p-6 shadow-sm border border-border/50 flex flex-col items-center text-center">
@@ -332,16 +384,77 @@ export default function ScriptGenerator() {
                   <RefreshCw className="h-3 w-3" /> Resync
                 </button>
                 <button
-                  className="py-2 text-xs font-semibold rounded-md bg-[#CCAC00] text-black hover:bg-[#b39700] transition-colors flex items-center justify-center gap-1 shadow-sm"
-                  data-testid="btn-export-audio"
-                  onClick={() => toast({ title: "Export", description: "Audio export requires a TTS API connection." })}
+                  className="py-2 text-xs font-semibold rounded-md bg-black/10 text-muted-foreground transition-colors flex items-center justify-center gap-1 cursor-not-allowed"
+                  disabled
                 >
-                  <Download className="h-3 w-3" /> Export
+                  <Download className="h-3 w-3" /> Audio
                 </button>
               </div>
             </div>
           </div>
 
+          {/* Export Script */}
+          <div className="p-6 border-b border-border">
+            <h2 className="font-bold text-lg mb-3">Export Script</h2>
+            <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+              Download the current module's scenes as a formatted document.
+            </p>
+
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                data-testid="btn-export-script"
+                disabled={exporting || scenes.length === 0}
+                onClick={() => setExportMenuOpen((v) => !v)}
+                className="w-full py-2.5 px-4 rounded-md bg-[#CCAC00] text-black font-semibold text-sm hover:bg-[#b39700] transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {exporting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                {exporting ? "Exporting…" : "Export Script"}
+                {!exporting && <ChevronDown className={cn("h-3.5 w-3.5 ml-auto transition-transform", exportMenuOpen && "rotate-180")} />}
+              </button>
+
+              {exportMenuOpen && (
+                <div className="absolute bottom-full mb-1 left-0 w-full bg-white border border-border rounded-lg shadow-lg overflow-hidden z-50">
+                  <button
+                    data-testid="btn-export-pdf"
+                    onClick={() => handleExport("pdf")}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-[#F0F4F4] transition-colors text-left"
+                  >
+                    <span className="flex items-center justify-center h-8 w-8 rounded-md bg-red-50 shrink-0">
+                      <FileText className="h-4 w-4 text-red-500" />
+                    </span>
+                    <div>
+                      <div className="font-semibold">PDF Document</div>
+                      <div className="text-xs text-muted-foreground">Branded A4 layout</div>
+                    </div>
+                  </button>
+                  <div className="h-px bg-border mx-3" />
+                  <button
+                    data-testid="btn-export-docx"
+                    onClick={() => handleExport("docx")}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm font-medium hover:bg-[#F0F4F4] transition-colors text-left"
+                  >
+                    <span className="flex items-center justify-center h-8 w-8 rounded-md bg-blue-50 shrink-0">
+                      <FileType2 className="h-4 w-4 text-blue-500" />
+                    </span>
+                    <div>
+                      <div className="font-semibold">Word Document</div>
+                      <div className="text-xs text-muted-foreground">Editable .docx file</div>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {scenes.length === 0 && (
+              <p className="text-xs text-muted-foreground mt-2 text-center">Select a module with scenes to export.</p>
+            )}
+          </div>
+
+          {/* Visual Storyboard */}
           <div className="p-6">
             <h2 className="font-bold text-lg mb-4">Visual Storyboard</h2>
             <div className="space-y-4">
