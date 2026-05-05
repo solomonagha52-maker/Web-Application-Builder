@@ -1,5 +1,5 @@
 import { supabase } from "./supabase";
-import type { GeneratedCourse } from "./ai";
+import type { GeneratedCourse, CourseScene } from "./ai";
 
 export interface Project {
   id: string;
@@ -33,6 +33,7 @@ export interface Topic {
 export interface Scene {
   id: string;
   module_id: string;
+  topic_id: string | null;
   project_id: string;
   scene_number: number;
   title: string;
@@ -110,12 +111,40 @@ export async function getModuleTopics(moduleId: string): Promise<Topic[]> {
   return (data || []) as Topic[];
 }
 
-export async function getModuleScenes(moduleId: string): Promise<Scene[]> {
+export async function getTopicScenes(topicId: string): Promise<Scene[]> {
   const { data, error } = await supabase
     .from("scenes")
     .select("*")
-    .eq("module_id", moduleId)
+    .eq("topic_id", topicId)
     .order("scene_number");
+  if (error) throw error;
+  return (data || []) as Scene[];
+}
+
+export async function saveTopicScenes(
+  topicId: string,
+  moduleId: string,
+  projectId: string,
+  scenes: CourseScene[]
+): Promise<Scene[]> {
+  // Remove any existing scenes for this topic first
+  await supabase.from("scenes").delete().eq("topic_id", topicId);
+
+  const toInsert = scenes.map((s) => ({
+    topic_id: topicId,
+    module_id: moduleId,
+    project_id: projectId,
+    scene_number: s.scene_number,
+    title: s.title,
+    visual_cue: s.visual_cue,
+    script_text: s.script_text,
+    is_locked: false,
+  }));
+
+  const { data, error } = await supabase
+    .from("scenes")
+    .insert(toInsert)
+    .select();
   if (error) throw error;
   return (data || []) as Scene[];
 }
@@ -128,12 +157,56 @@ export async function updateScene(sceneId: string, updates: Partial<Scene>): Pro
   if (error) throw error;
 }
 
+export async function lockTopic(topicId: string): Promise<void> {
+  const { error } = await supabase
+    .from("scenes")
+    .update({ is_locked: true })
+    .eq("topic_id", topicId);
+  if (error) throw error;
+}
+
 export async function lockModule(moduleId: string): Promise<void> {
   const { error } = await supabase
     .from("scenes")
     .update({ is_locked: true })
     .eq("module_id", moduleId);
   if (error) throw error;
+}
+
+export async function addSceneToTopic(
+  topicId: string,
+  moduleId: string,
+  projectId: string,
+  sceneNumber: number
+): Promise<Scene> {
+  const { data, error } = await supabase
+    .from("scenes")
+    .insert({
+      topic_id: topicId,
+      module_id: moduleId,
+      project_id: projectId,
+      scene_number: sceneNumber,
+      title: `Scene ${sceneNumber}: New Scene`,
+      visual_cue: "Describe what should be shown on screen during this narration.",
+      script_text: "Enter the voiceover script for this scene here.",
+      is_locked: false,
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data as Scene;
+}
+
+// Legacy — kept for backwards compat with old data that stored scenes at module level
+export async function getModuleScenes(moduleId: string): Promise<Scene[]> {
+  const { data, error } = await supabase
+    .from("scenes")
+    .select("*")
+    .eq("module_id", moduleId)
+    .is("topic_id", null)
+    .order("scene_number");
+  if (error) throw error;
+  return (data || []) as Scene[];
 }
 
 export async function addSceneToModule(
@@ -158,6 +231,7 @@ export async function addSceneToModule(
   return data as Scene;
 }
 
+// Saves structure only — scenes are generated per-topic on demand
 export async function saveAIResults(
   projectId: string,
   courseData: GeneratedCourse
@@ -185,25 +259,11 @@ export async function saveAIResults(
       const { error } = await supabase.from("topics").insert(topicsToInsert);
       if (error) throw error;
     }
-
-    const scenesToInsert = (mod.scenes || []).map((s) => ({
-      module_id: moduleId,
-      project_id: projectId,
-      scene_number: s.scene_number,
-      title: s.title,
-      visual_cue: s.visual_cue,
-      script_text: s.script_text,
-      is_locked: false,
-    }));
-    if (scenesToInsert.length > 0) {
-      const { error } = await supabase.from("scenes").insert(scenesToInsert);
-      if (error) throw error;
-    }
   }
 
   await updateProject(projectId, {
     status: "ready",
-    progress: 25,
+    progress: 10,
     title: courseData.title,
     subject: courseData.subject,
   });

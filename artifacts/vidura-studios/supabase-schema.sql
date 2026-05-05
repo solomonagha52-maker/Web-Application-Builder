@@ -95,6 +95,7 @@ create policy "Users can CRUD topics for own modules"
 create table if not exists public.scenes (
   id           uuid primary key default gen_random_uuid(),
   module_id    uuid references public.modules(id) on delete cascade not null,
+  topic_id     uuid references public.topics(id) on delete cascade,
   project_id   uuid references public.projects(id) on delete cascade not null,
   scene_number integer not null,
   title        text not null default '',
@@ -114,6 +115,10 @@ create policy "Users can CRUD own scenes"
       select user_id from public.projects where id = scenes.project_id
     )
   );
+
+-- ─── Migration: add topic_id to existing scenes table ────────
+-- If you already ran this schema before, run just this line:
+-- alter table public.scenes add column if not exists topic_id uuid references public.topics(id) on delete cascade;
 
 -- ─── Auto-create profile on signup ───────────────────────────
 create or replace function public.handle_new_user()

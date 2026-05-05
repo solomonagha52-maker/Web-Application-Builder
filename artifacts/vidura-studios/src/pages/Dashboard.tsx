@@ -79,16 +79,23 @@ export default function Dashboard() {
       setUploadStatus("extracting");
       const pdfText = await extractPdfText(file);
 
+      // Cache PDF text for use in per-topic script generation
+      try {
+        localStorage.setItem(`vidura_pdf_text_${project.id}`, pdfText.substring(0, 12000));
+      } catch {
+        // Storage quota exceeded — non-fatal
+      }
+
       setUploadStatus("generating");
       let courseData;
       try {
         courseData = await generateCourseStructure(pdfText);
       } catch (aiErr) {
-        console.warn("Ollama unavailable, using template:", aiErr);
+        console.warn("AI unavailable, using template:", aiErr);
         courseData = generateMockCourse(file.name);
         toast({
           title: "AI engine offline",
-          description: "Ollama is not reachable — a template course structure has been created instead.",
+          description: "A template course structure has been created. You can generate scripts per topic manually.",
         });
       }
 
@@ -100,7 +107,7 @@ export default function Dashboard() {
       await loadProjects();
 
       setTimeout(() => {
-        setLocation("/course-structure");
+        setLocation("/script-generator");
       }, 1200);
     } catch (err) {
       console.error(err);
@@ -180,7 +187,7 @@ export default function Dashboard() {
           {uploadStatus === "idle" && (
             <p className="text-muted-foreground text-sm max-w-sm">
               Drag and drop your syllabus, textbook chapters, or lecture notes here. We'll
-              automatically structure it into a course using AI.
+              automatically structure it into a course with AI-generated scripts per topic.
             </p>
           )}
           {uploadStatus === "error" && (
@@ -252,7 +259,7 @@ export default function Dashboard() {
                       data-testid={`btn-continue-project-${project.id}`}
                       onClick={() => {
                         localStorage.setItem("vidura_active_project_id", project.id);
-                        setLocation("/course-structure");
+                        setLocation("/script-generator");
                       }}
                     >
                       Continue

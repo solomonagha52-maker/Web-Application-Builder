@@ -1,30 +1,46 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import DashboardLayout from "@/components/DashboardLayout";
-import { PlayCircle, Download, RefreshCw, Layers, Loader2, Plus, Lock, FileText, FileType2, ChevronDown } from "lucide-react";
+import {
+  PlayCircle, Download, RefreshCw, Layers, Loader2, Plus, Lock,
+  FileText, FileType2, ChevronDown, ChevronRight, Sparkles, BookOpen,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import {
   getProjectModules,
   getProjectById,
-  getModuleScenes,
+  getModuleTopics,
+  getTopicScenes,
+  saveTopicScenes,
   updateScene,
-  addSceneToModule,
-  lockModule,
+  addSceneToTopic,
+  lockTopic,
   type Module,
+  type Topic,
   type Scene,
 } from "@/lib/database";
+import { generateTopicScript } from "@/lib/ai";
 import { exportScriptAsPDF, exportScriptAsDocx } from "@/lib/export";
+
+interface ModuleWithTopics extends Module {
+  topics: Topic[];
+  topicsLoaded: boolean;
+}
 
 export default function ScriptGenerator() {
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const [modules, setModules] = useState<Module[]>([]);
-  const [activeModuleId, setActiveModuleId] = useState<string | null>(null);
+  const [modules, setModules] = useState<ModuleWithTopics[]>([]);
+  const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
+  const [activeTopicId, setActiveTopicId] = useState<string | null>(null);
+  const [activeTopic, setActiveTopic] = useState<Topic | null>(null);
+  const [activeModule, setActiveModule] = useState<Module | null>(null);
   const [scenes, setScenes] = useState<Scene[]>([]);
   const [loadingModules, setLoadingModules] = useState(true);
   const [loadingScenes, setLoadingScenes] = useState(false);
+  const [generating, setGenerating] = useState(false);
   const [saving, setSaving] = useState<Record<string, boolean>>({});
   const [locking, setLocking] = useState(false);
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -36,26 +52,43 @@ export default function ScriptGenerator() {
   const loadModules = useCallback(async (pid: string) => {
     setLoadingModules(true);
     try {
-      const [data, project] = await Promise.all([
+      const [mods, project] = await Promise.all([
         getProjectModules(pid),
         getProjectById(pid),
       ]);
-      setModules(data);
       if (project) setProjectTitle(project.title);
-      if (data.length > 0 && !activeModuleId) {
-        setActiveModuleId(data[0].id);
+
+      // Load all topics for all modules upfront for instant navigation
+      const modsWithTopics: ModuleWithTopics[] = await Promise.all(
+        mods.map(async (mod) => {
+          const topics = await getModuleTopics(mod.id);
+          return { ...mod, topics, topicsLoaded: true };
+        })
+      );
+      setModules(modsWithTopics);
+
+      // Auto-expand first module and select first topic
+      if (modsWithTopics.length > 0) {
+        const firstMod = modsWithTopics[0];
+        setExpandedModules(new Set([firstMod.id]));
+        if (firstMod.topics.length > 0) {
+          const firstTopic = firstMod.topics[0];
+          setActiveTopic(firstTopic);
+          setActiveTopicId(firstTopic.id);
+          setActiveModule(firstMod);
+        }
       }
     } catch {
       toast({ title: "Could not load modules", variant: "destructive" });
     } finally {
       setLoadingModules(false);
     }
-  }, [activeModuleId, toast]);
+  }, [toast]);
 
-  const loadScenes = useCallback(async (moduleId: string) => {
+  const loadScenes = useCallback(async (topicId: string) => {
     setLoadingScenes(true);
     try {
-      const data = await getModuleScenes(moduleId);
+      const data = await getTopicScenes(topicId);
       setScenes(data);
     } catch {
       toast({ title: "Could not load scenes", variant: "destructive" });
@@ -75,8 +108,8 @@ export default function ScriptGenerator() {
   }, [user, loadModules]);
 
   useEffect(() => {
-    if (activeModuleId) loadScenes(activeModuleId);
-  }, [activeModuleId, loadScenes]);
+    if (activeTopicId) loadScenes(activeTopicId);
+  }, [activeTopicId, loadScenes]);
 
   // Close export menu on outside click
   useEffect(() => {
@@ -89,7 +122,75 @@ export default function ScriptGenerator() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const activeModule = modules.find((m) => m.id === activeModuleId);
+  const handleSelectTopic = (topic: Topic, mod: ModuleWithTopics) => {
+    setActiveTopic(topic);
+    setActiveTopicId(topic.id);
+    setActiveModule(mod);
+    setScenes([]);
+  };
+
+  const toggleModule = (modId: string) => {
+    setExpandedModules((prev) => {
+      const next = new Set(prev);
+      if (next.has(modId)) next.delete(modId);
+      else next.add(modId);
+      return next;
+    });
+  };
+
+  const handleGenerateScript = async () => {
+    if (!activeTopic || !activeModule || !projectId) return;
+    setGenerating(true);
+    try {
+      const pdfContext = localStorage.getItem(`vidura_pdf_text_${projectId}`) || "";
+      const generatedScenes = await generateTopicScript(
+        projectTitle,
+        activeModule.title,
+        activeTopic.title,
+        activeTopic.order_index,
+        pdfContext
+      );
+      const saved = await saveTopicScenes(
+        activeTopic.id,
+        activeModule.id,
+        projectId,
+        generatedScenes
+      );
+      setScenes(saved);
+      toast({ title: "Script generated", description: `${generatedScenes.length} scenes created for "${activeTopic.title}".` });
+    } catch (err) {
+      toast({ title: "Generation failed", description: String(err), variant: "destructive" });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleRegenerateScript = async () => {
+    if (!activeTopic || !activeModule || !projectId) return;
+    setGenerating(true);
+    try {
+      const pdfContext = localStorage.getItem(`vidura_pdf_text_${projectId}`) || "";
+      const generatedScenes = await generateTopicScript(
+        projectTitle,
+        activeModule.title,
+        activeTopic.title,
+        activeTopic.order_index,
+        pdfContext
+      );
+      const saved = await saveTopicScenes(
+        activeTopic.id,
+        activeModule.id,
+        projectId,
+        generatedScenes
+      );
+      setScenes(saved);
+      toast({ title: "Script regenerated", description: `${generatedScenes.length} scenes updated.` });
+    } catch (err) {
+      toast({ title: "Regeneration failed", description: String(err), variant: "destructive" });
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const handleScriptChange = async (sceneId: string, newText: string) => {
     setSaving((prev) => ({ ...prev, [sceneId]: true }));
@@ -117,25 +218,25 @@ export default function ScriptGenerator() {
   };
 
   const handleAddScene = async () => {
-    if (!activeModuleId || !projectId) return;
+    if (!activeTopicId || !activeModule || !projectId) return;
     const nextNum = scenes.length > 0 ? Math.max(...scenes.map((s) => s.scene_number)) + 1 : 1;
     try {
-      const newScene = await addSceneToModule(activeModuleId, projectId, nextNum);
+      const newScene = await addSceneToTopic(activeTopicId, activeModule.id, projectId, nextNum);
       setScenes((prev) => [...prev, newScene]);
     } catch {
       toast({ title: "Failed to add scene", variant: "destructive" });
     }
   };
 
-  const handleFinalizeModule = async () => {
-    if (!activeModuleId) return;
+  const handleFinalizeTopic = async () => {
+    if (!activeTopicId) return;
     setLocking(true);
     try {
-      await lockModule(activeModuleId);
+      await lockTopic(activeTopicId);
       setScenes((prev) => prev.map((s) => ({ ...s, is_locked: true })));
-      toast({ title: "Module finalized and locked" });
+      toast({ title: "Topic finalized and locked" });
     } catch {
-      toast({ title: "Failed to lock module", variant: "destructive" });
+      toast({ title: "Failed to lock topic", variant: "destructive" });
     } finally {
       setLocking(false);
     }
@@ -143,32 +244,37 @@ export default function ScriptGenerator() {
 
   const handleExport = async (format: "pdf" | "docx") => {
     setExportMenuOpen(false);
-    if (!activeModule || scenes.length === 0) {
-      toast({ title: "Nothing to export", description: "Select a module with scenes first.", variant: "destructive" });
+    if (!activeTopic || scenes.length === 0) {
+      toast({ title: "Nothing to export", description: "Select a topic with scenes first.", variant: "destructive" });
       return;
     }
     setExporting(true);
     try {
       const payload = {
         courseName: projectTitle || "Untitled Course",
-        moduleName: activeModule.title,
+        moduleName: activeTopic.title,
         scenes,
       };
       if (format === "pdf") {
         await exportScriptAsPDF(payload);
-        toast({ title: "PDF downloaded", description: `${activeModule.title} exported as PDF.` });
+        toast({ title: "PDF downloaded", description: `${activeTopic.title} exported as PDF.` });
       } else {
         await exportScriptAsDocx(payload);
-        toast({ title: "Word document downloaded", description: `${activeModule.title} exported as .docx.` });
+        toast({ title: "Word document downloaded", description: `${activeTopic.title} exported as .docx.` });
       }
-    } catch (err) {
+    } catch {
       toast({ title: "Export failed", description: "Could not generate the file. Please try again.", variant: "destructive" });
     } finally {
       setExporting(false);
     }
   };
 
-  const isModuleLocked = scenes.length > 0 && scenes.every((s) => s.is_locked);
+  const isTopicLocked = scenes.length > 0 && scenes.every((s) => s.is_locked);
+
+  // Word count for current scenes
+  const wordCount = scenes.reduce((acc, s) => {
+    return acc + (s.script_text || "").split(/\s+/).filter(Boolean).length;
+  }, 0);
 
   if (!loadingModules && !projectId) {
     return (
@@ -177,7 +283,7 @@ export default function ScriptGenerator() {
           <Layers className="h-12 w-12 text-muted-foreground mb-4" />
           <h2 className="text-xl font-bold mb-2">No project selected</h2>
           <p className="text-muted-foreground text-sm mb-6">
-            Upload a PDF on the Dashboard to generate scripts automatically.
+            Upload a PDF on the Dashboard to generate course structure automatically.
           </p>
           <a
             href="/dashboard"
@@ -194,16 +300,19 @@ export default function ScriptGenerator() {
     <DashboardLayout>
       <div className="flex h-[calc(100vh-8rem)] -mx-4 md:-mx-8 -my-4 md:-my-8 overflow-hidden border-t border-border">
 
-        {/* Left Panel — Modules */}
-        <div className="w-64 bg-[#F0F4F4] border-r border-border flex flex-col shrink-0">
-          <div className="p-4 border-b border-border bg-[#F0F4F4] sticky top-0">
-            <h2 className="font-bold text-lg flex items-center gap-2">
-              <Layers className="h-5 w-5 text-[#004D40]" />
-              Course Modules
+        {/* ── Left Panel: Module → Topic tree ───────────────────────── */}
+        <div className="w-72 bg-[#F0F4F4] border-r border-border flex flex-col shrink-0">
+          <div className="p-4 border-b border-border bg-[#F0F4F4]">
+            <h2 className="font-bold text-base flex items-center gap-2">
+              <Layers className="h-4 w-4 text-[#004D40]" />
+              Course Structure
             </h2>
+            {projectTitle && (
+              <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{projectTitle}</p>
+            )}
           </div>
 
-          <div className="flex-1 overflow-y-auto p-2 space-y-1">
+          <div className="flex-1 overflow-y-auto py-2">
             {loadingModules ? (
               <div className="flex justify-center py-8">
                 <Loader2 className="h-5 w-5 animate-spin text-[#004D40]" />
@@ -213,140 +322,249 @@ export default function ScriptGenerator() {
                 No modules found. Upload a PDF first.
               </p>
             ) : (
-              modules.map((mod) => (
-                <button
-                  key={mod.id}
-                  onClick={() => setActiveModuleId(mod.id)}
-                  className={cn(
-                    "w-full text-left px-4 py-3 rounded-md text-sm font-medium transition-colors",
-                    activeModuleId === mod.id
-                      ? "bg-white border-l-4 border-[#004D40] shadow-sm text-[#004D40]"
-                      : "hover:bg-black/5 text-foreground"
+              modules.map((mod, mi) => (
+                <div key={mod.id} className="mb-0.5">
+                  {/* Module header */}
+                  <button
+                    onClick={() => toggleModule(mod.id)}
+                    className={cn(
+                      "w-full flex items-center gap-2 px-3 py-2.5 text-left transition-colors",
+                      expandedModules.has(mod.id)
+                        ? "bg-white/60 text-[#004D40]"
+                        : "hover:bg-black/5 text-foreground"
+                    )}
+                  >
+                    {expandedModules.has(mod.id)
+                      ? <ChevronDown className="h-3.5 w-3.5 shrink-0" />
+                      : <ChevronRight className="h-3.5 w-3.5 shrink-0" />
+                    }
+                    <span className="text-xs font-bold uppercase tracking-wider truncate">
+                      M{mi + 1}. {mod.title.replace(/^Module \d+:\s*/i, "")}
+                    </span>
+                  </button>
+
+                  {/* Topics list */}
+                  {expandedModules.has(mod.id) && (
+                    <div className="bg-white/40">
+                      {mod.topics.map((topic, ti) => (
+                        <button
+                          key={topic.id}
+                          onClick={() => handleSelectTopic(topic, mod)}
+                          className={cn(
+                            "w-full text-left pl-8 pr-3 py-2.5 text-sm transition-colors flex items-start gap-2",
+                            activeTopicId === topic.id
+                              ? "bg-white border-l-4 border-[#004D40] shadow-sm text-[#004D40] font-medium"
+                              : "hover:bg-white/60 text-foreground border-l-4 border-transparent"
+                          )}
+                          data-testid={`btn-select-topic-${topic.id}`}
+                        >
+                          <BookOpen className="h-3.5 w-3.5 mt-0.5 shrink-0 opacity-60" />
+                          <span className="line-clamp-2 leading-snug text-xs">
+                            {ti + 1}. {topic.title}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
                   )}
-                  data-testid={`btn-select-module-${mod.id}`}
-                >
-                  {mod.title}
-                </button>
+                </div>
               ))
             )}
           </div>
         </div>
 
-        {/* Center Panel — Script Editor */}
+        {/* ── Center Panel: Script editor ────────────────────────────── */}
         <div className="flex-1 bg-white flex flex-col overflow-hidden">
+
+          {/* Topic header bar */}
+          {activeTopic && (
+            <div className="px-8 py-4 border-b border-border bg-[#FAFAFA] flex items-center justify-between gap-4 shrink-0">
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground font-medium">{activeModule?.title}</p>
+                <h2 className="font-bold text-base truncate">{activeTopic.title}</h2>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                {wordCount > 0 && (
+                  <span className="text-xs text-muted-foreground bg-[#F0F4F4] px-3 py-1 rounded-full">
+                    {wordCount.toLocaleString()} words
+                  </span>
+                )}
+                {scenes.length > 0 && !isTopicLocked && (
+                  <button
+                    onClick={handleRegenerateScript}
+                    disabled={generating}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-md border border-[#004D40] text-[#004D40] hover:bg-[#004D40]/5 transition-colors disabled:opacity-50"
+                    data-testid="btn-regenerate"
+                  >
+                    {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
+                    Regenerate
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           <div className="flex-1 overflow-y-auto">
             <div className="p-8 max-w-3xl mx-auto w-full space-y-6 pb-8">
-              {isModuleLocked && (
+
+              {isTopicLocked && (
                 <div className="flex items-center gap-2 p-4 bg-[#004D40]/5 border border-[#004D40]/20 rounded-lg text-[#004D40] text-sm font-medium">
                   <Lock className="h-4 w-4" />
-                  This module has been finalized and locked.
+                  This topic has been finalized and locked.
                 </div>
               )}
 
-              {loadingScenes ? (
+              {/* No topic selected */}
+              {!activeTopic && !loadingModules && (
+                <div className="flex flex-col items-center justify-center py-24 text-center">
+                  <BookOpen className="h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">Select a topic to begin</h3>
+                  <p className="text-muted-foreground text-sm max-w-sm">
+                    Choose a topic from the course structure on the left. Each topic generates
+                    6 detailed scenes of 3,000–5,000 words.
+                  </p>
+                </div>
+              )}
+
+              {/* Loading scenes */}
+              {loadingScenes && (
                 <div className="flex justify-center py-16">
                   <Loader2 className="h-8 w-8 animate-spin text-[#004D40]" />
                 </div>
-              ) : scenes.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <p className="text-muted-foreground text-sm">No scenes in this module yet.</p>
+              )}
+
+              {/* No scenes yet — offer to generate */}
+              {!loadingScenes && activeTopic && scenes.length === 0 && !generating && (
+                <div className="flex flex-col items-center justify-center py-24 text-center">
+                  <div className="h-16 w-16 bg-[#004D40]/5 rounded-full flex items-center justify-center mb-6">
+                    <Sparkles className="h-8 w-8 text-[#004D40]" />
+                  </div>
+                  <h3 className="text-xl font-bold mb-3">No script yet for this topic</h3>
+                  <p className="text-muted-foreground text-sm max-w-sm mb-8 leading-relaxed">
+                    Generate a detailed script with exactly 6 scenes and 3,000–5,000 words of
+                    professional voiceover narration for:
+                  </p>
+                  <div className="bg-[#F0F4F4] rounded-xl p-4 mb-8 max-w-sm w-full text-left">
+                    <p className="text-xs text-muted-foreground font-medium mb-1">{activeModule?.title}</p>
+                    <p className="font-semibold text-sm">{activeTopic.title}</p>
+                  </div>
                   <button
-                    className="mt-4 px-4 py-2 rounded-md border border-[#004D40] text-[#004D40] text-sm font-medium hover:bg-[#004D40]/5 transition-colors"
-                    onClick={handleAddScene}
+                    onClick={handleGenerateScript}
+                    className="px-8 py-3.5 rounded-md bg-[#004D40] text-white font-bold hover:bg-[#003d33] transition-colors flex items-center gap-2 shadow-sm"
+                    data-testid="btn-generate-script"
                   >
-                    Add First Scene
+                    <Sparkles className="h-5 w-5" />
+                    Generate Script for this Topic
                   </button>
                 </div>
-              ) : (
-                scenes.map((scene) => (
-                  <div
-                    key={scene.id}
-                    className={cn(
-                      "bg-white border rounded-xl p-6 shadow-sm transition-colors",
-                      scene.is_locked ? "border-[#004D40]/30 opacity-80" : "border-[#E5E7EB] hover:border-[#004D40]/30"
-                    )}
-                    data-testid={`scene-card-${scene.id}`}
-                  >
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-bold text-lg">{scene.title}</h3>
+              )}
+
+              {/* Generating in progress */}
+              {generating && (
+                <div className="flex flex-col items-center justify-center py-24 text-center">
+                  <Loader2 className="h-10 w-10 animate-spin text-[#004D40] mb-6" />
+                  <h3 className="text-lg font-bold mb-2">Writing script…</h3>
+                  <p className="text-muted-foreground text-sm max-w-sm">
+                    Generating 6 scenes with 3,000–5,000 words of detailed narration. This takes
+                    15–30 seconds.
+                  </p>
+                </div>
+              )}
+
+              {/* Scene cards */}
+              {!loadingScenes && !generating && scenes.map((scene) => (
+                <div
+                  key={scene.id}
+                  className={cn(
+                    "bg-white border rounded-xl p-6 shadow-sm transition-colors",
+                    scene.is_locked
+                      ? "border-[#004D40]/30 opacity-80"
+                      : "border-[#E5E7EB] hover:border-[#004D40]/30"
+                  )}
+                  data-testid={`scene-card-${scene.id}`}
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-base">{scene.title}</h3>
+                    <div className="flex items-center gap-2">
                       {saving[scene.id] && (
                         <span className="text-xs text-muted-foreground flex items-center gap-1">
                           <Loader2 className="h-3 w-3 animate-spin" /> Saving…
                         </span>
                       )}
-                      {scene.is_locked && (
-                        <Lock className="h-4 w-4 text-[#004D40]" />
-                      )}
-                    </div>
-
-                    <div className="bg-[#F0F4F4] p-4 rounded-md mb-4 border border-border/50">
-                      <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1 block">
-                        Visual Cue
+                      {scene.is_locked && <Lock className="h-4 w-4 text-[#004D40]" />}
+                      <span className="text-xs text-muted-foreground">
+                        {(scene.script_text || "").split(/\s+/).filter(Boolean).length} words
                       </span>
-                      <p
-                        className="text-sm italic text-foreground/80 focus:outline-none focus:ring-1 focus:ring-[#004D40] rounded min-h-[2rem]"
-                        contentEditable={!scene.is_locked}
-                        suppressContentEditableWarning
-                        data-testid={`input-visual-cue-${scene.id}`}
-                        onBlur={(e) => {
-                          if (!scene.is_locked) handleVisualCueChange(scene.id, e.currentTarget.textContent || "");
-                        }}
-                      >
-                        {scene.visual_cue}
-                      </p>
-                    </div>
-
-                    <div>
-                      <span className="text-xs font-bold uppercase tracking-wider text-[#004D40] mb-2 block">
-                        Voiceover Script
-                      </span>
-                      <p
-                        className="text-base leading-relaxed text-foreground focus:outline-none focus:ring-1 focus:ring-[#004D40] rounded min-h-[4rem]"
-                        contentEditable={!scene.is_locked}
-                        suppressContentEditableWarning
-                        data-testid={`input-script-${scene.id}`}
-                        onBlur={(e) => {
-                          if (!scene.is_locked) handleScriptChange(scene.id, e.currentTarget.textContent || "");
-                        }}
-                      >
-                        {scene.script_text}
-                      </p>
                     </div>
                   </div>
-                ))
-              )}
 
-              {!isModuleLocked && scenes.length > 0 && (
+                  <div className="bg-[#F0F4F4] p-4 rounded-md mb-4 border border-border/50">
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1 block">
+                      Visual Cue
+                    </span>
+                    <p
+                      className="text-sm italic text-foreground/80 focus:outline-none focus:ring-1 focus:ring-[#004D40] rounded min-h-[2rem]"
+                      contentEditable={!scene.is_locked}
+                      suppressContentEditableWarning
+                      data-testid={`input-visual-cue-${scene.id}`}
+                      onBlur={(e) => {
+                        if (!scene.is_locked) handleVisualCueChange(scene.id, e.currentTarget.textContent || "");
+                      }}
+                    >
+                      {scene.visual_cue}
+                    </p>
+                  </div>
+
+                  <div>
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#004D40] mb-2 block">
+                      Voiceover Script
+                    </span>
+                    <p
+                      className="text-sm leading-relaxed text-foreground focus:outline-none focus:ring-1 focus:ring-[#004D40] rounded min-h-[8rem]"
+                      contentEditable={!scene.is_locked}
+                      suppressContentEditableWarning
+                      data-testid={`input-script-${scene.id}`}
+                      onBlur={(e) => {
+                        if (!scene.is_locked) handleScriptChange(scene.id, e.currentTarget.textContent || "");
+                      }}
+                    >
+                      {scene.script_text}
+                    </p>
+                  </div>
+                </div>
+              ))}
+
+              {/* Add scene button */}
+              {!isTopicLocked && scenes.length > 0 && !generating && (
                 <button
                   className="w-full py-4 border-2 border-dashed border-[#004D40] text-[#004D40] rounded-xl font-semibold hover:bg-[#004D40]/5 transition-colors flex items-center justify-center gap-2"
                   data-testid="btn-add-scene"
                   onClick={handleAddScene}
                 >
-                  <Plus className="h-4 w-4" /> Add Scene to Module
+                  <Plus className="h-4 w-4" /> Add Scene
                 </button>
               )}
             </div>
           </div>
 
           {/* Finalize bar */}
-          {!isModuleLocked && modules.length > 0 && (
-            <div className="p-4 bg-white border-t border-border">
+          {!isTopicLocked && activeTopic && scenes.length > 0 && !generating && (
+            <div className="p-4 bg-white border-t border-border shrink-0">
               <div className="max-w-3xl mx-auto">
                 <button
                   className="w-full py-3 rounded-md bg-[#004D40] text-white font-bold hover:bg-[#003d33] transition-colors flex items-center justify-center gap-2 disabled:opacity-60"
-                  data-testid="btn-finalize-module"
-                  onClick={handleFinalizeModule}
-                  disabled={locking || scenes.length === 0}
+                  data-testid="btn-finalize-topic"
+                  onClick={handleFinalizeTopic}
+                  disabled={locking}
                 >
                   {locking ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
-                  {locking ? "Locking…" : "Finalize and Lock Module"}
+                  {locking ? "Locking…" : "Finalize and Lock Topic"}
                 </button>
               </div>
             </div>
           )}
         </div>
 
-        {/* Right Panel */}
+        {/* ── Right Panel ────────────────────────────────────────────── */}
         <div className="w-72 bg-[#F0F4F4] border-l border-border flex flex-col shrink-0 overflow-y-auto">
 
           {/* Audio Preview */}
@@ -397,7 +615,7 @@ export default function ScriptGenerator() {
           <div className="p-6 border-b border-border">
             <h2 className="font-bold text-lg mb-3">Export Script</h2>
             <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
-              Download the current module's scenes as a formatted document.
+              Download the current topic's scenes as a formatted document.
             </p>
 
             <div className="relative" ref={exportMenuRef}>
@@ -413,7 +631,9 @@ export default function ScriptGenerator() {
                   <Download className="h-4 w-4" />
                 )}
                 {exporting ? "Exporting…" : "Export Script"}
-                {!exporting && <ChevronDown className={cn("h-3.5 w-3.5 ml-auto transition-transform", exportMenuOpen && "rotate-180")} />}
+                {!exporting && (
+                  <ChevronDown className={cn("h-3.5 w-3.5 ml-auto transition-transform", exportMenuOpen && "rotate-180")} />
+                )}
               </button>
 
               {exportMenuOpen && (
@@ -450,14 +670,50 @@ export default function ScriptGenerator() {
             </div>
 
             {scenes.length === 0 && (
-              <p className="text-xs text-muted-foreground mt-2 text-center">Select a module with scenes to export.</p>
+              <p className="text-xs text-muted-foreground mt-2 text-center">
+                Generate a topic script to export.
+              </p>
             )}
           </div>
 
+          {/* Topic stats */}
+          {activeTopic && (
+            <div className="p-6 border-b border-border">
+              <h2 className="font-bold text-base mb-4">Topic Stats</h2>
+              <div className="space-y-3">
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Scenes</span>
+                  <span className="font-semibold">{scenes.length} / 6</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Word count</span>
+                  <span className={cn(
+                    "font-semibold",
+                    wordCount >= 3000 && wordCount <= 5000 ? "text-[#004D40]" : wordCount > 0 ? "text-amber-600" : ""
+                  )}>
+                    {wordCount.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Target</span>
+                  <span className="text-muted-foreground">3,000–5,000</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Type</span>
+                  <span className="font-semibold">{activeTopic.content_type}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span className="text-muted-foreground">Duration</span>
+                  <span className="font-semibold">{activeTopic.duration}</span>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Visual Storyboard */}
           <div className="p-6">
-            <h2 className="font-bold text-lg mb-4">Visual Storyboard</h2>
-            <div className="space-y-4">
+            <h2 className="font-bold text-base mb-4">Visual Storyboard</h2>
+            <div className="space-y-3">
               {scenes.slice(0, 3).map((scene, i) => (
                 <div
                   key={scene.id}
@@ -470,7 +726,7 @@ export default function ScriptGenerator() {
               ))}
               {scenes.length === 0 && [1, 2, 3].map((f) => (
                 <div key={f} className="bg-border/30 rounded-lg aspect-video flex items-center justify-center border border-border">
-                  <span className="text-muted-foreground text-xs font-medium">Frame {f} placeholder</span>
+                  <span className="text-muted-foreground text-xs font-medium">Frame {f}</span>
                 </div>
               ))}
             </div>
