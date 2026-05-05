@@ -141,11 +141,10 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- ─── Storage bucket policies ──────────────────────────────────
--- IMPORTANT: Run these statements in the Supabase SQL Editor.
--- Make sure you have already created a bucket named "pdfs" (public)
--- in Storage → New Bucket. Then run the lines below:
+-- ─── Storage buckets & policies ───────────────────────────────
+-- Run these statements in the Supabase SQL Editor.
 
+-- PDFs bucket (public read, authenticated write)
 insert into storage.buckets (id, name, public)
 values ('pdfs', 'pdfs', true)
 on conflict (id) do nothing;
@@ -163,3 +162,36 @@ create policy "Users can delete own PDFs"
   on storage.objects for delete
   to authenticated
   using (bucket_id = 'pdfs' and (storage.foldername(name))[1] = auth.uid()::text);
+
+-- Avatars bucket (public read, authenticated write — each user writes only their own folder)
+insert into storage.buckets (id, name, public)
+values ('avatars', 'avatars', true)
+on conflict (id) do nothing;
+
+create policy "Authenticated users can upload own avatar"
+  on storage.objects for insert
+  to authenticated
+  with check (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy "Authenticated users can update own avatar"
+  on storage.objects for update
+  to authenticated
+  using (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy "Avatars are publicly readable"
+  on storage.objects for select
+  using (bucket_id = 'avatars');
+
+create policy "Users can delete own avatar"
+  on storage.objects for delete
+  to authenticated
+  using (
+    bucket_id = 'avatars'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );

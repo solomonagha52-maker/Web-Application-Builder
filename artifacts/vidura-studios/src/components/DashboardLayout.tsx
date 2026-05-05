@@ -13,8 +13,8 @@ import {
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import logoPath from "@assets/logo_1777977950187.png";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { useAuth, getInitials } from "@/contexts/AuthContext";
+import UserAvatar from "@/components/UserAvatar";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -27,7 +27,6 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { profile, user } = useAuth();
 
   const displayName = profile?.full_name || user?.email?.split("@")[0] || "User";
-  const initials = getInitials(displayName);
   const role = profile?.role || "Course Director";
 
   useEffect(() => {
@@ -88,12 +87,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
 
       <div className="p-4 border-t border-sidebar-border">
         <div className="flex items-center gap-3 px-2">
-          <Avatar className="h-9 w-9">
-            {profile?.avatar_url && <AvatarImage src={profile.avatar_url} alt={displayName} className="object-cover" />}
-            <AvatarFallback className="bg-[#004D40] text-white text-sm font-bold">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
+          <UserAvatar
+            avatarUrl={profile?.avatar_url}
+            name={displayName}
+            className="h-9 w-9"
+            fallbackClassName="text-sm"
+          />
           <div className="flex flex-col min-w-0">
             <span className="text-sm font-semibold text-foreground truncate">{displayName}</span>
             <span className="text-xs text-muted-foreground truncate">{role}</span>
@@ -161,12 +160,12 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
               <span className="absolute -top-1 -right-1 h-2 w-2 bg-[#CCAC00] rounded-full" />
             </button>
             <Link href="/settings">
-              <Avatar className="h-8 w-8 cursor-pointer">
-                {profile?.avatar_url && <AvatarImage src={profile.avatar_url} alt={displayName} className="object-cover" />}
-                <AvatarFallback className="bg-[#004D40] text-white text-xs font-bold">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar
+                avatarUrl={profile?.avatar_url}
+                name={displayName}
+                className="h-8 w-8 cursor-pointer"
+                fallbackClassName="text-xs"
+              />
             </Link>
           </div>
         </header>

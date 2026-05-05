@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import UserAvatar from "@/components/UserAvatar";
 import { useAuth, getInitials } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, CheckCircle2, Camera } from "lucide-react";
@@ -180,12 +180,17 @@ export default function Settings() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
             {/* Clickable avatar with camera overlay */}
             <div className="relative group shrink-0">
-              <Avatar className="h-24 w-24 border-4 border-[#F0F4F4] dark:border-muted">
-                {avatarUrl && <AvatarImage src={avatarUrl} alt={fullName} className="object-cover" />}
-                <AvatarFallback className="bg-[#004D40] text-white text-3xl font-bold">
-                  {uploadingAvatar ? <Loader2 className="h-8 w-8 animate-spin" /> : initials}
-                </AvatarFallback>
-              </Avatar>
+              <UserAvatar
+                avatarUrl={uploadingAvatar ? null : avatarUrl}
+                name={fullName || profile?.full_name || "VS"}
+                className="h-24 w-24 border-4 border-[#F0F4F4] dark:border-muted"
+                fallbackClassName="text-3xl"
+              />
+              {uploadingAvatar && (
+                <div className="absolute inset-0 rounded-full bg-[#004D40] flex items-center justify-center">
+                  <Loader2 className="h-8 w-8 text-white animate-spin" />
+                </div>
+              )}
               {/* Camera overlay button */}
               <button
                 type="button"
