@@ -1,5 +1,3 @@
-import { AI_API_URL } from "./supabase";
-
 export interface CourseScene {
   scene_number: number;
   title: string;
@@ -47,9 +45,18 @@ export async function extractPdfText(file: File): Promise<string> {
   return text.trim();
 }
 
-export async function generateCourseStructure(pdfText: string): Promise<GeneratedCourse> {
-  const ollamaUrl = AI_API_URL || "http://localhost:11434";
+export async function checkOllamaHealth(): Promise<boolean> {
+  try {
+    const res = await fetch("/api/ai/health", { signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return false;
+    const data = await res.json() as { status: string };
+    return data.status === "ok";
+  } catch {
+    return false;
+  }
+}
 
+export async function generateCourseStructure(pdfText: string): Promise<GeneratedCourse> {
   const prompt = `You are an expert educational course designer. Analyze the following academic content and generate a structured online course.
 
 Return ONLY a valid JSON object with this EXACT structure — no markdown, no explanation, just JSON:
@@ -92,7 +99,7 @@ Requirements:
 Academic Content:
 ${pdfText.substring(0, 5000)}`;
 
-  const response = await fetch(`${ollamaUrl}/api/generate`, {
+  const response = await fetch("/api/ai/generate", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -104,10 +111,11 @@ ${pdfText.substring(0, 5000)}`;
   });
 
   if (!response.ok) {
-    throw new Error(`Ollama API error: ${response.status} ${response.statusText}`);
+    const err = await response.json().catch(() => ({})) as { error?: string };
+    throw new Error(err.error || `AI proxy error: ${response.status}`);
   }
 
-  const data = await response.json();
+  const data = await response.json() as { response?: string };
   const raw = data.response || "";
 
   try {

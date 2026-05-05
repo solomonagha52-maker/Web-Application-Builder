@@ -136,19 +136,25 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- ─── Storage bucket (run separately or via Supabase Dashboard) ──
--- Go to Storage in your Supabase Dashboard and create a bucket named "pdfs"
--- Set it to Public so uploaded PDFs can be accessed by URL.
--- Then add these storage policies in the SQL editor:
---
--- insert into storage.buckets (id, name, public)
--- values ('pdfs', 'pdfs', true)
--- on conflict (id) do nothing;
---
--- create policy "Authenticated users can upload PDFs"
---   on storage.objects for insert
---   with check (bucket_id = 'pdfs' and auth.role() = 'authenticated');
---
--- create policy "PDFs are publicly accessible"
---   on storage.objects for select
---   using (bucket_id = 'pdfs');
+-- ─── Storage bucket policies ──────────────────────────────────
+-- IMPORTANT: Run these statements in the Supabase SQL Editor.
+-- Make sure you have already created a bucket named "pdfs" (public)
+-- in Storage → New Bucket. Then run the lines below:
+
+insert into storage.buckets (id, name, public)
+values ('pdfs', 'pdfs', true)
+on conflict (id) do nothing;
+
+create policy "Authenticated users can upload PDFs"
+  on storage.objects for insert
+  to authenticated
+  with check (bucket_id = 'pdfs');
+
+create policy "PDFs are publicly readable"
+  on storage.objects for select
+  using (bucket_id = 'pdfs');
+
+create policy "Users can delete own PDFs"
+  on storage.objects for delete
+  to authenticated
+  using (bucket_id = 'pdfs' and (storage.foldername(name))[1] = auth.uid()::text);
