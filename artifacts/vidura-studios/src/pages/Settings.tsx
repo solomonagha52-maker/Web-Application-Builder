@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import DashboardLayout from "@/components/DashboardLayout";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth, getInitials } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { Loader2, CheckCircle2, Camera } from "lucide-react";
+import { uploadAvatar } from "@/lib/database";
 
 function getStoredTheme(): boolean {
   return localStorage.getItem("vidura_theme") === "dark";
@@ -29,11 +30,10 @@ export default function Settings() {
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(profile?.avatar_url ?? null);
 
-  // After a successful save we block the profile→form sync for one cycle.
-  // Without this guard, background auth token refreshes trigger onAuthStateChange
-  // → fetchProfile → setProfile → useEffect([profile]) which resets the inputs
-  // back to whatever was in the DB before the upsert completed.
+  const avatarInputRef = useRef<HTMLInputElement>(null);
   const blockNextProfileSync = useRef(false);
 
   const [theme, setTheme] = useState(getStoredTheme);
@@ -52,6 +52,7 @@ export default function Settings() {
     }
     setFullName(profile.full_name || "");
     setEmail(profile.email || user?.email || "");
+    setAvatarUrl(profile.avatar_url ?? null);
   }, [profile, user]);
 
   useEffect(() => {
@@ -76,13 +77,45 @@ export default function Settings() {
   const initials = getInitials(fullName || profile?.full_name || "VS");
   const role = profile?.role || "Course Director";
 
+  const handleAvatarChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Please select an image file", variant: "destructive" });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Image too large", description: "Please pick an image under 5 MB.", variant: "destructive" });
+      return;
+    }
+
+    setUploadingAvatar(true);
+    try {
+      const url = await uploadAvatar(user.id, file);
+      // Show immediately in UI without waiting for full profile re-fetch
+      setAvatarUrl(url);
+      blockNextProfileSync.current = true;
+      const { error } = await updateProfile({ avatar_url: url });
+      if (error) throw error;
+      toast({ title: "Profile photo updated" });
+    } catch (err) {
+      toast({
+        title: "Upload failed",
+        description: String(err),
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingAvatar(false);
+      // Reset so the same file can be re-selected if needed
+      e.target.value = "";
+    }
+  };
+
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setSaveSuccess(false);
-
-    // Block the next profile re-sync so a background fetchProfile triggered by
-    // updateProfile's own re-fetch doesn't overwrite the inputs the user sees.
     blockNextProfileSync.current = true;
 
     const { error, saved } = await updateProfile({ full_name: fullName, email });
@@ -145,14 +178,47 @@ export default function Settings() {
         {/* Profile card */}
         <div className="bg-white dark:bg-card border border-border rounded-2xl p-8 mb-8 shadow-sm">
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-            <Avatar className="h-24 w-24 border-4 border-[#F0F4F4] dark:border-muted">
-              <AvatarFallback className="bg-[#004D40] text-white text-3xl font-bold">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
+            {/* Clickable avatar with camera overlay */}
+            <div className="relative group shrink-0">
+              <Avatar className="h-24 w-24 border-4 border-[#F0F4F4] dark:border-muted">
+                {avatarUrl && <AvatarImage src={avatarUrl} alt={fullName} className="object-cover" />}
+                <AvatarFallback className="bg-[#004D40] text-white text-3xl font-bold">
+                  {uploadingAvatar ? <Loader2 className="h-8 w-8 animate-spin" /> : initials}
+                </AvatarFallback>
+              </Avatar>
+              {/* Camera overlay button */}
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer disabled:cursor-not-allowed"
+                aria-label="Change profile photo"
+                data-testid="btn-change-avatar"
+              >
+                <Camera className="h-7 w-7 text-white" />
+              </button>
+              <input
+                ref={avatarInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleAvatarChange}
+                data-testid="input-avatar-upload"
+              />
+            </div>
+
             <div className="flex-1">
               <h2 className="text-2xl font-bold">{fullName || "Your Name"}</h2>
-              <p className="text-muted-foreground text-lg mb-3">{role}</p>
+              <p className="text-muted-foreground text-lg mb-1">{role}</p>
+              <button
+                type="button"
+                onClick={() => avatarInputRef.current?.click()}
+                disabled={uploadingAvatar}
+                className="text-xs text-[#004D40] dark:text-[#00BFA5] font-semibold hover:underline mb-3 disabled:opacity-50"
+              >
+                {uploadingAvatar ? "Uploading…" : "Change profile photo"}
+              </button>
+              <br />
               <span className="inline-block px-3 py-1 rounded-md bg-[#CCAC00]/10 text-[#CCAC00] text-sm font-bold border border-[#CCAC00]/30">
                 Institutional Tier
               </span>

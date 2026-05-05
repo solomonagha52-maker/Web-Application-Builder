@@ -269,6 +269,22 @@ export async function saveAIResults(
   });
 }
 
+export async function uploadAvatar(userId: string, file: File): Promise<string> {
+  const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+  const fileName = `avatars/${userId}/avatar.${ext}`;
+
+  const { data, error } = await supabase.storage
+    .from("pdfs")
+    .upload(fileName, file, { contentType: file.type, upsert: true });
+
+  if (error) throw error;
+
+  const {
+    data: { publicUrl },
+  } = supabase.storage.from("pdfs").getPublicUrl(data.path);
+  return publicUrl;
+}
+
 export async function uploadPdf(userId: string, file: File): Promise<string | null> {
   const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
   const fileName = `${userId}/${Date.now()}-${sanitized}`;

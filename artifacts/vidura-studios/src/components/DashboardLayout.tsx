@@ -13,7 +13,7 @@ import {
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import logoPath from "@assets/logo_1777977950187.png";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth, getInitials } from "@/contexts/AuthContext";
 
 interface DashboardLayoutProps {
@@ -89,6 +89,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className="p-4 border-t border-sidebar-border">
         <div className="flex items-center gap-3 px-2">
           <Avatar className="h-9 w-9">
+            {profile?.avatar_url && <AvatarImage src={profile.avatar_url} alt={displayName} className="object-cover" />}
             <AvatarFallback className="bg-[#004D40] text-white text-sm font-bold">
               {initials}
             </AvatarFallback>
@@ -161,6 +162,7 @@ export default function DashboardLayout({ children }: DashboardLayoutProps) {
             </button>
             <Link href="/settings">
               <Avatar className="h-8 w-8 cursor-pointer">
+                {profile?.avatar_url && <AvatarImage src={profile.avatar_url} alt={displayName} className="object-cover" />}
                 <AvatarFallback className="bg-[#004D40] text-white text-xs font-bold">
                   {initials}
                 </AvatarFallback>

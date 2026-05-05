@@ -162,7 +162,7 @@ export default function Dashboard() {
               ? "border-red-300 bg-red-50"
               : uploadStatus === "done"
               ? "border-[#004D40] bg-[#004D40]/5"
-              : "border-[#E5E7EB] bg-white hover:border-[#004D40] hover:bg-black/5"
+              : "border-[#E5E7EB] dark:border-border bg-white dark:bg-card hover:border-[#004D40] hover:bg-black/5 dark:hover:bg-white/5"
           }`}
           data-testid="pdf-drop-zone"
           onClick={() => !isProcessing && fileInputRef.current?.click()}
@@ -212,7 +212,7 @@ export default function Dashboard() {
               <Loader2 className="h-8 w-8 animate-spin text-[#004D40]" />
             </div>
           ) : projects.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed border-[#E5E7EB] rounded-xl bg-white">
+            <div className="flex flex-col items-center justify-center py-16 text-center border border-dashed border-[#E5E7EB] dark:border-border rounded-xl bg-white dark:bg-card">
               <FolderOpen className="h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">No projects yet</h3>
               <p className="text-muted-foreground text-sm max-w-xs">
@@ -224,17 +224,17 @@ export default function Dashboard() {
               {projects.map((project) => (
                 <div
                   key={project.id}
-                  className="bg-white border border-border rounded-xl p-6 flex flex-col hover:shadow-sm transition-shadow"
+                  className="bg-white dark:bg-card border border-border rounded-xl p-6 flex flex-col hover:shadow-sm transition-shadow"
                   data-testid={`card-project-${project.id}`}
                 >
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1 min-w-0">
                       {project.subject && (
-                        <span className="inline-block px-3 py-1 rounded-full bg-[#F0F4F4] text-xs font-medium text-foreground mb-3">
+                        <span className="inline-block px-3 py-1 rounded-full bg-[#F0F4F4] dark:bg-muted text-xs font-medium text-foreground mb-3">
                           {project.subject}
                         </span>
                       )}
-                      <h3 className="font-bold text-lg leading-tight line-clamp-2">{project.title}</h3>
+                      <h3 className="font-bold text-lg leading-tight line-clamp-2 text-foreground">{project.title}</h3>
                     </div>
                     <span className="text-xs text-muted-foreground shrink-0 ml-3">
                       {timeAgo(project.updated_at)}
@@ -245,11 +245,11 @@ export default function Dashboard() {
                     <div className="space-y-2">
                       <div className="flex justify-between text-sm">
                         <span className="text-muted-foreground capitalize">{project.status}</span>
-                        <span className="font-semibold">{project.progress}% Complete</span>
+                        <span className="font-semibold text-foreground">{project.progress}% Complete</span>
                       </div>
-                      <div className="h-2 w-full bg-[#F0F4F4] rounded-full overflow-hidden">
+                      <div className="h-2 w-full bg-[#F0F4F4] dark:bg-muted rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-[#004D40] rounded-full transition-all duration-500"
+                          className="h-full bg-[#004D40] dark:bg-[#00BFA5] rounded-full transition-all duration-500"
                           style={{ width: `${project.progress}%` }}
                         />
                       </div>
