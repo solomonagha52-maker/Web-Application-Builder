@@ -282,7 +282,9 @@ export async function uploadAvatar(userId: string, file: File): Promise<string> 
   const {
     data: { publicUrl },
   } = supabase.storage.from("avatars").getPublicUrl(data.path);
-  return publicUrl;
+  // Append a cache-buster so the browser always fetches the new image
+  // instead of serving the stale cached version from the same URL path.
+  return `${publicUrl}?t=${Date.now()}`;
 }
 
 export async function uploadPdf(userId: string, file: File): Promise<string | null> {
